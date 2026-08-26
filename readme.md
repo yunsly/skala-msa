@@ -1,3 +1,5 @@
+> 협업 규칙(브랜치/커밋/PR 전략)은 [CONTRIBUTING.md](./CONTRIBUTING.md) 참고
+
 # The following practice code is intended for educational purposes only. For contact :  audit@korea.ac.kr, Sungryel Lim Ph.D
 
 # This practice code is not a completed commercial version but has been developed for educational purposes; supplementation is required depending on the deployment objective for use as a commercial service.
