@@ -10,7 +10,10 @@ export default defineConfig({
     }
   },
   server: {
-    host: 'localhost',
+    // 시연 시 같은 네트워크의 다른 사람들이 LAN IP로 접속할 수 있도록 개방.
+    // 프록시 target(http://localhost:8080)은 dev 서버 프로세스 자체가 로컬 백엔드로
+    // 요청하는 것이라 host 설정과 무관하게 그대로 유지.
+    host: '0.0.0.0',
     port: 3000,
     strictPort: true,
     proxy: {
