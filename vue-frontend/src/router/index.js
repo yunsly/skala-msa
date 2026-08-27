@@ -16,6 +16,12 @@ const routes = [
     meta: { guestOnly: true }
   },
   {
+    // auth-server OAuth2 Authorization Code Flow의 redirect_uri 대상.
+    path: '/callback',
+    name: 'Callback',
+    component: () => import('@/views/CallbackView.vue')
+  },
+  {
     path: '/projects',
     name: 'ProjectCatalog',
     component: () => import('@/views/ProjectCatalogView.vue'),

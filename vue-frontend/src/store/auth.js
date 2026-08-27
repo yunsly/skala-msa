@@ -2,14 +2,17 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authApi } from '@/api/auth.js'
 
+const AUTH_SERVER_URL = import.meta.env.VITE_AUTH_SERVER_URL || 'http://localhost:8080'
+
+// 실제 운영 중인 백엔드(auth-server OAuth2 + user-service STUDENT/INSTRUCTOR)에
+// 맞춘 인증 스토어. KeyNexus 문서상의 ADMIN/LEADER/MEMBER, 직접 로그인
+// (POST /api/users/login)은 아직 백엔드에 없어 여기서는 쓰지 않는다.
 export const useAuthStore = defineStore('auth', () => {
   const accessToken = ref(sessionStorage.getItem('access_token') || null)
   const user = ref(JSON.parse(sessionStorage.getItem('user') || 'null'))
 
   const isAuthenticated = computed(() => !!accessToken.value)
-  const isAdmin = computed(() => user.value?.role === 'ADMIN')
-  const isLeader = computed(() => user.value?.role === 'LEADER')
-  const isMember = computed(() => user.value?.role === 'MEMBER')
+  const isInstructor = computed(() => user.value?.role === 'INSTRUCTOR')
 
   function setToken(token) {
     accessToken.value = token
@@ -21,22 +24,22 @@ export const useAuthStore = defineStore('auth', () => {
     sessionStorage.setItem('user', JSON.stringify(userData))
   }
 
-  // 이메일/비밀번호 로그인. 응답 스키마는 백엔드 확정 후 확인 필요 —
-  // data.token / data.user 우선, 없으면 대안 필드 탐색.
-  async function login({ email, password }) {
-    const res = await authApi.login({ email, password })
-    console.log('[AuthStore] login response =', res.data)
+  async function fetchUser() {
+    try {
+      const res = await authApi.getMe()
+      console.log('[AuthStore] /me response =', res.data)
 
-    const payload = res.data?.data ?? res.data
-    const token = payload?.token ?? payload?.accessToken
-    const userData = payload?.user
+      const userData = res?.data?.data ?? res?.data
 
-    if (!token || !userData) {
-      throw new Error('로그인 응답 형식이 올바르지 않습니다.')
+      if (!userData || typeof userData !== 'object') {
+        throw new Error('사용자 정보 형식이 올바르지 않습니다.')
+      }
+
+      setUser(userData)
+    } catch (error) {
+      console.error('[AuthStore] 사용자 정보 조회 실패:', error)
+      logout(false)
     }
-
-    setToken(token)
-    setUser(userData)
   }
 
   function logout(redirect = true) {
@@ -50,16 +53,42 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // OAuth2 Authorization Code Flow
+  function redirectToLogin() {
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: import.meta.env.VITE_CLIENT_ID,
+      redirect_uri: import.meta.env.VITE_REDIRECT_URI,
+      scope: 'openid profile read write'
+    })
+
+    window.location.href = `${AUTH_SERVER_URL}/oauth2/authorize?${params.toString()}`
+  }
+
+  async function handleCallback(code) {
+    const res = await authApi.exchangeCode(code)
+    console.log('[AuthStore] token response =', res.data)
+
+    const token = res?.data?.access_token
+
+    if (!token) {
+      throw new Error('액세스 토큰을 받지 못했습니다.')
+    }
+
+    setToken(token)
+    await fetchUser()
+  }
+
   return {
     accessToken,
     user,
     isAuthenticated,
-    isAdmin,
-    isLeader,
-    isMember,
+    isInstructor,
     setToken,
     setUser,
-    login,
-    logout
+    fetchUser,
+    logout,
+    redirectToLogin,
+    handleCallback
   }
 })

@@ -9,54 +9,67 @@
         </div>
         <div class="brand-content">
           <h2>사내 Credential을<br>안전하게 관리하세요</h2>
-          <p>프로젝트 계정으로 로그인하고 접근 현황을 확인하세요.</p>
+          <p>계정으로 로그인하고 프로젝트별 접근 현황을 확인하세요.</p>
           <ul class="feature-list">
             <li v-for="f in features" :key="f"><span class="dot"></span>{{ f }}</li>
           </ul>
         </div>
       </div>
 
-      <!-- 우측 로그인 폼 -->
+      <!-- 우측 -->
       <div class="login-right">
         <div class="login-box">
           <router-link to="/" class="back-link">← 홈으로</router-link>
 
-          <h1>로그인</h1>
-          <p class="sub">사내 계정 이메일과 비밀번호를 입력하세요.</p>
-
-          <form class="form" @submit.prevent="handleSubmit">
-            <div class="form-group">
-              <label class="form-label" for="email">이메일</label>
-              <input
-                id="email"
-                v-model.trim="form.email"
-                type="email"
-                class="form-input"
-                placeholder="name@company.com"
-                autocomplete="username"
-                required
-              />
+          <!-- 로그인 -->
+          <div v-if="!showRegister" class="section">
+            <h1>로그인</h1>
+            <p class="sub">사내 SSO(OAuth2) 계정으로 로그인합니다.</p>
+            <button class="btn btn-primary btn-full" @click="handleOAuth">로그인</button>
+            <div class="switch-link">
+              계정이 없으신가요?
+              <button type="button" class="text-btn" @click="showRegister = true">회원가입</button>
             </div>
-            <div class="form-group">
-              <label class="form-label" for="password">비밀번호</label>
-              <input
-                id="password"
-                v-model="form.password"
-                type="password"
-                class="form-input"
-                placeholder="••••••••"
-                autocomplete="current-password"
-                required
-              />
+          </div>
+
+          <!-- 회원가입 -->
+          <div v-else class="section">
+            <h1>회원가입</h1>
+            <p class="sub">계정 생성 후 로그인 버튼으로 접속하세요.</p>
+            <form class="form" @submit.prevent="handleRegister">
+              <div class="form-group">
+                <label class="form-label" for="name">이름</label>
+                <input id="name" v-model.trim="registerForm.name" type="text" class="form-input" placeholder="홍길동" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="reg-email">이메일</label>
+                <input id="reg-email" v-model.trim="registerForm.email" type="email" class="form-input" placeholder="name@company.com" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="reg-password">비밀번호</label>
+                <input id="reg-password" v-model="registerForm.password" type="password" class="form-input" placeholder="8자 이상" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="role">역할</label>
+                <select id="role" v-model="registerForm.role" class="form-input">
+                  <option value="STUDENT">개발자 (STUDENT)</option>
+                  <option value="INSTRUCTOR">프로젝트 관리자 (INSTRUCTOR)</option>
+                </select>
+              </div>
+
+              <div v-if="error" class="error-msg">{{ error }}</div>
+              <div v-if="success" class="success-msg">{{ success }}</div>
+
+              <button type="submit" class="btn btn-primary btn-full" :disabled="loading">
+                <span v-if="loading">가입 중...</span>
+                <span v-else>회원가입</span>
+              </button>
+            </form>
+            <div class="switch-link">
+              이미 계정이 있으신가요?
+              <button type="button" class="text-btn" @click="showRegister = false">로그인</button>
             </div>
-
-            <div v-if="error" class="error-msg">{{ error }}</div>
-
-            <button type="submit" class="btn btn-primary btn-full" :disabled="loading">
-              <span v-if="loading">로그인 중...</span>
-              <span v-else>로그인</span>
-            </button>
-          </form>
+          </div>
         </div>
       </div>
     </div>
@@ -65,15 +78,17 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/store/auth.js'
+import { authApi } from '@/api/auth.js'
 
-const router = useRouter()
 const auth = useAuthStore()
 
-const form = ref({ email: '', password: '' })
+const showRegister = ref(false)
 const loading = ref(false)
 const error = ref('')
+const success = ref('')
+
+const registerForm = ref({ name: '', email: '', password: '', role: 'STUDENT' })
 
 const features = [
   '프로젝트별 Credential 한눈에 파악',
@@ -81,16 +96,26 @@ const features = [
   '규칙 기반 위험도로 선제 대응'
 ]
 
-async function handleSubmit() {
+function handleOAuth() {
+  auth.redirectToLogin()
+}
+
+async function handleRegister() {
   error.value = ''
+  success.value = ''
   loading.value = true
 
   try {
-    await auth.login(form.value)
-    router.push({ name: 'ProjectCatalog' })
+    await authApi.register(registerForm.value)
+    success.value = '회원가입 완료! 로그인 버튼으로 접속하세요.'
+    registerForm.value = { name: '', email: '', password: '', role: 'STUDENT' }
+    setTimeout(() => {
+      showRegister.value = false
+      success.value = ''
+    }, 2000)
   } catch (e) {
-    console.error('[LoginView] 로그인 실패:', e)
-    error.value = e.response?.data?.message || '이메일 또는 비밀번호가 올바르지 않습니다.'
+    console.error('[LoginView] 회원가입 실패:', e)
+    error.value = e.response?.data?.message || '회원가입에 실패했습니다.'
   } finally {
     loading.value = false
   }
@@ -167,6 +192,7 @@ async function handleSubmit() {
   align-items: center;
   justify-content: center;
   padding: 48px;
+  overflow-y: auto;
 }
 .login-box { width: 100%; max-width: 380px; }
 .back-link {
@@ -177,10 +203,11 @@ async function handleSubmit() {
 }
 .back-link:hover { color: var(--color-primary); }
 
-.login-box h1 { font-size: 22px; font-weight: 700; color: var(--color-text-primary); margin-bottom: 6px; }
-.sub { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 24px; }
+.section { display: flex; flex-direction: column; gap: 16px; }
+.section h1 { font-size: 22px; font-weight: 700; color: var(--color-text-primary); margin-bottom: 2px; }
+.sub { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 4px; }
 
-.form { display: flex; flex-direction: column; gap: 16px; }
+.form { display: flex; flex-direction: column; gap: 14px; }
 .form-group { display: flex; flex-direction: column; gap: 6px; }
 .form-label { font-size: 12.5px; font-weight: 500; color: var(--color-text-secondary); }
 .form-input {
@@ -199,6 +226,22 @@ async function handleSubmit() {
 
 .btn-full { width: 100%; padding: 12px; font-size: 15px; justify-content: center; margin-top: 4px; }
 
+.switch-link {
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+}
+.text-btn {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0 2px;
+  text-decoration: underline;
+}
 .error-msg {
   padding: 10px 14px;
   background: var(--color-danger-light);
@@ -206,6 +249,14 @@ async function handleSubmit() {
   border-radius: var(--radius-md);
   font-size: 13px;
   color: var(--color-danger);
+}
+.success-msg {
+  padding: 10px 14px;
+  background: var(--color-success-light);
+  border: 1px solid var(--color-success);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  color: var(--color-success);
 }
 
 @media (max-width: 860px) {
