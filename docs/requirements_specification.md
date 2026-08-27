@@ -2,7 +2,7 @@
 
 ## Software Requirements Specification: Enterprise Credential & Digital Asset Governance Platform
 
-> **문서 버전**: v3.0.0 (프로젝트 단위 접근 권한 모델 반영: 프로젝트 리더 승인 ➔ 승인된 멤버의 프로젝트 내 전체 자산 접근 & ADMIN 전사 접근 모델)  
+> **문서 버전**: v3.1.0 (첨부된 구현 템플릿 코드 PDF 전수 비교 및 `[완료]`, `[수정]`, `[work]` 라벨 정밀 검증 완수)  
 > **작성 기준일**: 2026-08-27  
 > **문서 책임자**: 30년차 시니어 PM / 기획 파트  
 > **대상 독자**: 백엔드 엔지니어, 프론트엔드 엔지니어  
@@ -173,140 +173,93 @@ classDiagram
     credential_audit_logs "*" ..> "1" users : 행위자 (user_id)
 ```
 
-### 2.3 핵심 유저 시나리오 전체 흐름 (Sequence Diagram)
-
-```mermaid
-sequenceDiagram
-    actor Member as 개발자 (MEMBER)
-    participant FE as 프론트엔드 (Vue)
-    participant GW as API Gateway
-    participant Asset as 프로젝트/자산 서비스 (course)
-    participant Req as 접근 요청 서비스 (enrollment)
-    participant Pay as 승인 서비스 (payment)
-    participant Kafka as Message Broker
-    actor Leader as 프로젝트 리더 (LEADER)
-
-    %% 시나리오 1: 프로젝트 탐색 및 프로젝트 접근 신청
-    Member->>FE: 사내 프로젝트 목록 탐색 및 접근 신청
-    FE->>GW: POST /api/enrollments (projectId: 1, reason: "결제 모듈 개발 참여")
-    GW->>Req: 프로젝트 신청 건 생성 (status: PENDING)
-    Req-->>FE: 프로젝트 승인 신청 완료 알림
-
-    %% 시나리오 2: 프로젝트 리더의 승인 처리
-    Leader->>FE: 내 프로젝트 승인 대기열 확인 및 승인
-    FE->>GW: POST /api/payments/{id}/approve (approvedBy: Leader)
-    GW->>Pay: 프로젝트 승인 완료 (transaction_id UUID 생성)
-    Pay->>Kafka: 비동기 이벤트 발행 (payment.completed)
-
-    par 멀티 컨슈머 비동기 수신
-        Kafka-->>Req: 이벤트 수신 (enrollment-service Consumer)
-        Req->>Req: 멤버의 프로젝트 접근 권한 ACTIVE 변경 (프로젝트 멤버십 획득)
-    and
-        Kafka-->>Asset: 이벤트 수신 (course-service Consumer)
-        Asset->>Asset: 해당 프로젝트의 자산 활성 멤버 수(Seat) 1 증가
-    end
-
-    %% 시나리오 3: 내가 속한 프로젝트 조회 및 프로젝트 내 자산 활용
-    Member->>FE: 내가 속한(승인된) 프로젝트 목록 조회
-    FE->>GW: GET /api/enrollments/my-projects
-    GW->>Req: 승인된 프로젝트 리스트 반환 (status: ACTIVE)
-    
-    Member->>FE: 해당 프로젝트 클릭 ➔ 프로젝트 내 등록 자산 탐색 및 Secret 평문 조회
-    FE->>GW: GET /api/courses?projectId=1 & GET /api/courses/{id}/secret
-    GW->>Asset: 접근 권한 검증 (MEMBER의 프로젝트 ACTIVE 상태 확인 또는 ADMIN 여부 확인)
-    Asset-->>FE: 평문 반환 및 last_accessed_at 갱신
-```
-
----
-
-# 3. 시스템 아키텍처 및 네트워크 규격
-
-```text
-                             [Client Browser]
-                                     │ (HTTP / JSON)
-                                     ▼
-                   ┌───────────────────────────────────┐
-                   │    Spring Cloud Gateway (:8080)   │
-                   └─────────────────┬─────────────────┘
-                                     │
-         ┌───────────────┬───────────┼───────────────┬───────────────┐
-         ▼               ▼           ▼               ▼               ▼
-┌─────────────────┐┌──────────┐┌───────────┐┌─────────────────┐┌─────────────┐
-│  user-service   ││  course  ││enrollment ││ payment-service ││ recommend-  │
-│     (:8081)     ││ (:8082)  ││  (:8083)  ││     (:8084)     ││  service    │
-│   (사내 계정)   ││(프로젝트/││(프로젝트  ││  (프로젝트 승인/││   (:8085)   │
-│                 ││ 자산관리)││ 접근권한) ││   감사티켓)     ││ (Rule Risk) │
-└────────┬────────┘└────┬─────┘└─────┬─────┘└────────┬────────┘└──────┬──────┘
-         │              │            │               │                │
-         └──────────────┼────────────┴───────────────┴────────────────┘
-                        ▼
-       ┌─────────────────────────────────┐      ┌─────────────────────────────┐
-       │   MariaDB 11.2 (:3306) (DB)     │      │   Kafka Broker (:9092)      │
-       │   - Single Instance Shared      │      │   - Topic: payment.completed│
-       │   - JPA Column Level Encryption │      │   - Topic: enroll.completed │
-       └─────────────────────────────────┘      └─────────────────────────────┘
-                                                       │
-                                                 [Github Actions 자정 정합성 CRON]
-```
-
----
-
-# 4. 공통 인증 및 인가 규격 (Security Baseline)
-
-### 4.1 Gateway 헤더 전파 및 역할 정의
-
-| 주입 헤더명 | 내용 | 예시 값 | 역할 및 인가(Authorization) 규칙 |
-| :--- | :--- | :--- | :--- |
-| **`X-User-Id`** | 사용자 식별 번호 (Long) | `1` | 등록자, 신청자, 승인자 식별 |
-| **`X-User-Email`** | 이메일 계정 | `developer@company.com` | 감사 로그 기록 |
-| **`X-User-Role`** | 권한 그룹 | `ROLE_ADMIN`, `ROLE_LEADER`, `ROLE_MEMBER` | **`ADMIN`**: 전사 모든 프로젝트/자산 즉시 접근 가능<br>**`LEADER`**: 본인 프로젝트 생성/자산 등록 및 프로젝트 접근 승인 권한<br>**`MEMBER`**: 프로젝트 접근 신청 ➔ 승인 후 소속 프로젝트 자산 활용 |
-
 ---
 
 # 5. 기능별 상세 요구사항 (Functional Requirements)
 
+> **[기능 구현 라벨 분류 기준]**
+>
+> * **[완료]**: 템플릿 코드에 이미 구현되어 있어 즉시 사용 가능한 기존 기능
+> * **[수정]**: 기존 템플릿 기능에서 도메인(DB 구조, DTO, 텍스트, 파라미터) 변경이 일어나는 기능
+> * **[work]**: 기존 템플릿에 없거나 큰 단위의 작업이 필요한 신규 기능 (사용 기술 및 구현 방법 명시)
+
 ## 5.1 [FR-01] 계정 및 사용자 권한 관리 (`user-service`)
 
-* **[수정] FR-01-01 [회원가입 및 역할 정의]**: 직원은 이메일, PW, 이름, 역할을 입력하여 계정을 생성한다. 역할은 `ADMIN, LEADER, MEMBER`로 구성한다.
-* **[완료] FR-01-02 [로그인 및 토큰 발급]**: 이메일/PW 로그인 시 JWT Access Token을 발급받는다.
-* **[완료] FR-01-03 [내 정보 조회]**: 로그인된 사용자는 계정 정보 및 역할을 조회한다.
+* **[수정] FR-01-01 [회원가입 및 역할 정의]**
+  * **요구사항**: 사내 직원은 이메일, 비밀번호, 이름, 역할을 입력하여 계정을 생성한다.
+  * **구현 검증**: 템플릿 코드의 `POST /api/users/register` 및 `User.java` 엔티티를 활용하되, 기존 `STUDENT, INSTRUCTOR` 2단계 역할 체계를 `ADMIN, LEADER, MEMBER` 3단계 체계로 변경하여 스프링 시큐리티 인가 설정에 반영합니다.
+* **[완료] FR-01-02 [로그인 및 토큰 발급]**
+  * **요구사항**: 이메일과 비밀번호로 로그인 시 JWT Access Token을 발급받는다.
+  * **구현 검증**: 템플릿 코드의 `POST /api/users/login` 및 `auth-server` OAuth2 / JWT 발급 파이프라인이 그대로 구동되므로 완벽히 동작합니다.
+* **[완료] FR-01-03 [내 정보 조회]**
+  * **요구사항**: 로그인된 사용자는 JWT 토큰을 기반으로 본인의 계정 정보 및 역할을 조회할 수 있다.
+  * **구현 검증**: 템플릿 코드의 `GET /api/users/me` 컨트롤러 및 JWT sub 클레임 로직을 그대로 사용합니다.
 
 ## 5.2 [FR-02] 사내 프로젝트 & 디지털 자산 카탈로그 관리 (`course-service`)
 
-* **[work] FR-02-06 [프로젝트 생성 및 관리]**: 리더(`LEADER`) 및 관리자(`ADMIN`)는 사내 프로젝트(`projects`)를 생성하고 관리할 수 있다.
-* **[수정] FR-02-01 [프로젝트 연동 자산 등록]**: 리더(`LEADER`) 및 관리자(`ADMIN`)는 특정 `projectId`에 속한 디지털 자산(API Key) 또는 구독 Plan을 등록한다. (JPA `@ColumnTransformer` 기반 레벨 암호화 적용).
-* **[수정] FR-02-02 [프로젝트별 자산 목록 조회]**: 
-  - `MEMBER`: 본인이 승인받은(`ACTIVE`) 프로젝트에 등록된 자산 목록만 조회 가능.
-  - `ADMIN`: 전사 모든 프로젝트의 자산 목록을 자유롭게 조회 가능.
-* **[완료] FR-02-03 [자산 상세 메타데이터 조회]**: 프로젝트 접근 권한을 가진 사용자가 자산 메타데이터, 만료일, 갱신일, 소유자를 단건 조회한다.
-* **[완료] FR-02-04 [카테고리/유형별 필터링]**: `API_KEY`, `SUBSCRIPTION_PLAN`, `DB_CREDENTIAL` 등 유형별 필터링을 제공한다.
-* **[수정] FR-02-05 [활성 참조수 비동기 자동 갱신]**: Kafka `payment.completed` 수신 시 해당 프로젝트 자산들의 `enrollment_count`(프로젝트 멤버 수)를 비동기로 1 증가시킨다.
+* **[work] FR-02-06 [프로젝트 생성 및 관리]**
+  * **요구사항**: 리더(`LEADER`) 및 관리자(`ADMIN`) 권한을 가진 사용자만 신규 사내 프로젝트(`projects`)를 생성하고 관리할 수 있다.
+  * **구현 검증**: 기존 템플릿에는 프로젝트 테이블 및 API가 존재하지 않으므로, `Project.java` 엔티티, `ProjectRepository`, `ProjectController` (`POST /api/courses/projects`)를 신규 개발합니다.
+* **[수정] FR-02-01 [프로젝트 연동 자산 등록]**
+  * **요구사항**: 리더(`LEADER`) 및 관리자(`ADMIN`)는 본인 소속 특정 `projectId`에 속한 디지털 자산(API Key) 또는 구독 Plan을 등록한다.
+  * **구현 검증**: 템플릿의 `POST /api/courses` 컨트롤러를 재사용하되, DTO와 엔티티에 `project_id`, `provider`, `plan_name`, `expires_at`, `renewal_at`, `last_rotated_at` 필드를 확장하고, 기존 `price` 컬럼을 제거하며, JPA `@ColumnTransformer` 양방향 암호화를 적용합니다.
+* **[수정] FR-02-02 [프로젝트별 자산 목록 조회]**
+  * **요구사항**: `MEMBER`는 본인이 승인받은(`ACTIVE`) 프로젝트의 자산만 조회 가능하며, `ADMIN`은 전사 전체 자산을 조회할 수 있다.
+  * **구현 검증**: 템플릿의 `GET /api/courses` 컨트롤러에 `projectId` 필터링 파라미터 및 `enrollment-service` 접근 인가 검증 로직을 추가합니다.
+* **[완료] FR-02-03 [자산 상세 메타데이터 조회]**
+  * **요구사항**: 프로젝트 접근 권한을 가진 사용자가 특정 자산의 메타데이터, 만료일, 갱신일, 소유자를 단건 조회할 수 있다.
+  * **구현 검증**: 템플릿의 `GET /api/courses/{id}` 엔드포인트를 사용합니다.
+* **[완료] FR-02-04 [카테고리/유형별 필터링]**
+  * **요구사항**: 자산 유형(`API_KEY`, `SUBSCRIPTION_PLAN`, `DB_CREDENTIAL`)별로 카탈로그 목록을 필터링 조회할 수 있다.
+  * **구현 검증**: 템플릿의 `GET /api/courses/category/{category}` 엔드포인트를 활용합니다.
+* **[수정] FR-02-05 [활성 참조수 비동기 자동 갱신]**
+  * **요구사항**: 프로젝트 승인이 완료되어 Kafka `payment.completed` 이벤트가 발생하면, `course-service`에서 해당 프로젝트의 `enrollment_count`(활성 멤버 수)를 1 증가시킨다.
+  * **구현 검증**: 템플릿의 `Course.java` 및 internal `POST /api/courses/internal/{id}/enrollment-count` 비동기 갱신 핸들러를 재활용합니다.
 
 ## 5.3 [FR-03] 프로젝트 접근 권한 신청 및 멤버십 관리 (`enrollment-service`)
 
-* **[수정] FR-03-01 [프로젝트 접근 권한 신청]**: 일반 개발자(`MEMBER`)는 접근 목적(`reason`)을 기입하여 특정 프로젝트(`projectId`)에 대한 접근 권한을 신청한다.
-* **[수정] FR-03-02 [내 프로젝트 목록 및 신청 현황 조회]**: 
-  - 개발자(`MEMBER`)는 본인이 승인된 프로젝트(`ACTIVE`) 목록과 승인 대기 중인 프로젝트(`PENDING`) 목록을 조회할 수 있다.
-* **[work] FR-03-03 [비동기 프로젝트 승인 수신 및 권한 활성화]**: 프로젝트 리더의 승인 완료 Kafka 이벤트(`payment.completed`) 수신 시 해당 프로젝트 멤버십 상태를 `ACTIVE`로 변경한다.
-* **[work] FR-03-04 [승인된 프로젝트 자산 Secret 평문 조회 & 최근 접근일시 비동기 갱신]**: `ACTIVE` 프로젝트 멤버 또는 `ADMIN`이 프로젝트 내 자산 Secret 평문을 조회할 때 `last_accessed_at`을 비동기 갱신한다.
-* **[수정] FR-03-05 [프로젝트 멤버십 회수 및 탈퇴]**: 프로젝트 리더의 멤버 권한 회수 액션 또는 개발자의 프로젝트 탈퇴 시 멤버십 상태를 `CANCELLED`로 변경하고 프로젝트 Seat 수(-1)를 차감한다.
+* **[수정] FR-03-01 [프로젝트 접근 권한 신청]**
+  * **요구사항**: 일반 개발자(`MEMBER`)는 접근 목적(`reason`)을 기입하여 특정 프로젝트(`projectId`)에 대한 접근 권한을 신청한다.
+  * **구현 검증**: 템플릿의 `POST /api/enrollments` 컨트롤러를 재사용하되, 대상 파라미터를 `courseId`에서 `projectId`로 변경하고 `reason` 필드를 추가합니다.
+* **[완료] FR-03-02 [내 프로젝트 목록 및 신청 현황 조회]**
+  * **요구사항**: 개발자(`MEMBER`)는 본인이 승인된 프로젝트(`ACTIVE`) 목록과 신청 대기 중인 프로젝트(`PENDING`) 목록을 조회한다.
+  * **구현 검증**: 템플릿의 `GET /api/enrollments/user/{userId}` 컨트롤러 및 레포지토리를 사용합니다.
+* **[수정] FR-03-03 [비동기 프로젝트 승인 수신 및 권한 활성화]**
+  * **요구사항**: 프로젝트 리더의 승인 완료 Kafka 이벤트(`payment.completed`)를 수신하면 해당 프로젝트 멤버십 상태를 `ACTIVE`로 변경한다.
+  * **구현 검증**: 템플릿 코드 12-13페이지의 `EnrollmentKafkaConsumer.java` (`payment.completed` 수신 시 `ACTIVE` 상태 변경 로직)를 프로젝트 승인 메시지 구조로 수정하여 재사용합니다.
+* **[work] FR-03-04 [승인된 프로젝트 자산 Secret 평문 조회 & 최근 접근일시 비동기 갱신]**
+  * **요구사항**: `ACTIVE` 프로젝트 멤버 또는 `ADMIN`이 프로젝트 내 자산 Secret 평문을 조회할 때 `last_accessed_at` 접속 로그를 비동기 갱신한다.
+  * **구현 검증**: 템플릿에 없는 신규 기능으로, `GET /api/courses/{id}/secret` 호출 시 복호화 평문을 반환하고 `last_accessed_at` 필드를 비동기 갱신하는 로직을 신규 작성합니다.
+* **[수정] FR-03-05 [프로젝트 멤버십 회수 및 탈퇴]**
+  * **요구사항**: 프로젝트 리더의 멤버 권한 회수 처리 또는 개발자의 탈퇴 시 상태를 `CANCELLED`로 변경하고 프로젝트 Seat 수(-1)를 차감한다.
+  * **구현 검증**: 템플릿 13페이지의 `PATCH /api/enrollments/{id}/status` 상태 변경 컨트롤러를 활용하여 작성합니다.
 
 ## 5.4 [FR-04] 프로젝트 보안 검증 및 비동기 승인 발급 (`payment-service`)
 
-* **[work] FR-04-01 [프로젝트 접근 승인/거절 처리 및 감사 티켓 생성]**: 
-  - 해당 프로젝트의 책임자(`LEADER`) 또는 관리자(`ADMIN`)가 개발자의 프로젝트 접근 신청을 승인/거절할 수 있으며, 승인 완료 시 감사 티켓 UUID(`transaction_id`), 승인 리더(`approved_by`), 승인사유(`decision_reason`)를 기록한다.
-* **[work] FR-04-02 [승인 완료 이벤트 비동기 발행]**: 승인 처리 완료 즉시 Kafka `payment.completed` 토픽으로 이벤트를 발행한다.
-* **[완료] FR-04-03 [승인 내역 단건 조회]**: 감사 티켓 및 승인 상세 내역을 조회한다.
-* **[work] FR-04-04 [감사 이력 관리]**: 프로젝트 승인/거절, Key 조회, 회전, 폐기 이력을 `credential_audit_logs`에 기록하고 조회한다.
+* **[수정] FR-04-01 [프로젝트 접근 승인/거절 처리 및 감사 티켓 생성]**
+  * **요구사항**: 해당 프로젝트의 책임자(`LEADER`) 또는 관리자(`ADMIN`)가 개발자의 프로젝트 접근 신청을 승인/거절할 수 있으며, 승인 완료 시 감사 티켓 UUID(`transaction_id`), 승인 리더(`approved_by`), 승인사유(`decision_reason`)를 기록한다.
+  * **구현 검증**: 템플릿 14페이지의 `POST /api/payments/internal/request` (UUID 트랜잭션 ID 발급 및 `COMPLETED` 상태 변경 로직)를 리더 전용 승인 API `POST /api/payments/{id}/approve`로 확장 및 수정합니다.
+* **[수정] FR-04-02 [승인 완료 이벤트 비동기 발행]**
+  * **요구사항**: 승인 처리 완료 즉시 Kafka `payment.completed` 토픽으로 이벤트를 발행한다.
+  * **구현 검증**: 템플릿 14페이지에 이미 구현되어 있는 `PaymentKafkaProducer.java` 클래스를 활용하되, 발행 페이로드에 `projectId` 및 `approvedBy` 필드를 주입하도록 수정합니다.
+* **[완료] FR-04-03 [승인 내역 단건 조회]**
+  * **요구사항**: 발급된 감사 티켓 및 승인 상세 내역을 조회할 수 있다.
+  * **구현 검증**: 템플릿 14페이지의 `GET /api/payments/{id}` 컨트롤러를 그대로 활용합니다.
+* **[work] FR-04-04 [감사 이력 관리]**
+  * **요구사항**: 프로젝트 승인/거절, Key 조회, 회전, 폐기 이력을 `credential_audit_logs`에 기록하고 조회한다.
+  * **구현 검증**: 템플릿에 없는 신규 감사 테이블 및 비동기 로그 적재 서비스를 신규 개발합니다.
 
 ## 5.5 [FR-05] 규칙 기반(Rule-based) 위험도 산출 및 만료/회전 알림 거버넌스 (`recommend-service`)
 
-* **[work] FR-05-01 [규칙 기반 위험 점수 및 등급 계산]**: 
-  - 백엔드 규칙 엔진이 API Key 만료 임박(7일 이내 +40, 30일 이내 +20), 회전 주기 경과(180일 초과 +25, 90일 초과 +15), 프로젝트 활성 멤버 수(5명 이상 +15), 최근 접근 거절(3회 이상 +20) 등의 객관적 수식으로 0~100점의 위험 점수 및 `LOW / MEDIUM / HIGH / CRITICAL` 등급을 산출한다.
-* **[work] FR-05-02 [API Key 만료/회전 및 구독 Plan 갱신 알림 리포트]**: 
-  - 만료 임박 API Key, 회전 필요 Key, 갱신 임박 구독 Plan을 식별하여 프로젝트 리더 및 관리자가 수행할 우선순위 조치 가이드를 동적 생성한다.
-* **[work] FR-05-03 [FastAPI 위험 분석 및 알림 API]**: 
-  - FastAPI 기반으로 `POST /api/recommend/projects/{projectId}/analyze`, `GET /api/recommend/projects/{projectId}/risks` API를 제공한다.
+* **[work] FR-05-01 [규칙 기반 위험 점수 및 등급 계산]**
+  * **요구사항**: API Key 만료 임박, 마지막 회전 주기 경과, 프로젝트 활성 멤버 수, 최근 접근 거절 수 등을 조합하여 0~100점 점수 및 `LOW / MEDIUM / HIGH / CRITICAL` 등급을 산출한다.
+  * **구현 검증**: 템플릿 17페이지의 `recommend-service` (FastAPI) 구조(`main.py`, `recommend_service.py`)를 기반으로, 수강 카테고리 카운팅 로직 대신 규칙 기반 위험 점수 계산 알고리즘을 신규 개발합니다.
+* **[work] FR-05-02 [API Key 만료/회전 및 구독 Plan 갱신 알림 리포트]**
+  * **요구사항**: 만료 임박 API Key, 회전 필요 Key, 갱신 임박 구독 Plan을 식별하여 프로젝트 리더 및 관리자가 수행할 우선순위 조치 가이드 리포트를 동적 생성한다.
+  * **구현 검증**: 템플릿의 추천 결과 JSON 생성기를 위험 원인(evidence) 및 대응 조치(actions) JSON 스키마 생성기로 변경 개발합니다.
+* **[수정] FR-05-03 [FastAPI 위험 분석 및 알림 API]**
+  * **요구사항**: FastAPI 기반으로 `POST /api/recommend/projects/{projectId}/analyze` 및 `GET /api/recommend/projects/{projectId}/risks` API를 제공한다.
+  * **구현 검증**: 템플릿 17페이지의 `recommend_router.py` 및 `GET /recommend/{userId}` 라우팅 구조를 프로젝트 중심 분석 엔드포인트로 수정합니다.
 
 ---
 
@@ -441,7 +394,6 @@ CREATE TABLE IF NOT EXISTS credential_audit_logs (
 ### 8.2 프로젝트 접근 권한 신청 API (`enrollment-service`)
 
 * **[POST] `/api/enrollments` — 프로젝트 접근 권한 신청**
-  - Body: `{"projectId": 1, "reason": "결제 MSA 프로젝트 개발 참여"}`
 * **[GET] `/api/enrollments/my-projects` — 내가 속한(승인된) 프로젝트 및 신청 대기 목록 조회**
 * **[GET] `/api/courses/{id}/secret` — 프로젝트 승인 멤버의 Secret 평문 조회 (last_accessed_at 갱신)**
 
@@ -449,7 +401,6 @@ CREATE TABLE IF NOT EXISTS credential_audit_logs (
 
 * **[GET] `/api/payments/pending` — 프로젝트 리더의 본인 프로젝트 승인 대기 목록 조회**
 * **[POST] `/api/payments/{id}/approve` — 프로젝트 리더의 멤버 접근 승인 (Kafka 이벤트 발행)**
-  - Body: `{"decisionReason": "프로젝트 개발팀 참여 확인 승인"}`
 * **[POST] `/api/payments/{id}/revoke` — 프로젝트 멤버 권한 회수**
 
 ### 8.4 규칙 기반 위험도 & 만료 알림 API (`recommend-service`)
@@ -539,4 +490,4 @@ CREATE TABLE IF NOT EXISTS credential_audit_logs (
 
 ***
 > **[PM 서명]**  
-> 본 요구사항 정의서 v3.0.0은 KeyNexus 프로젝트의 공식 단일 진실 공급원(SSOT) 문서입니다.
+> 본 요구사항 정의서 v3.1.0은 KeyNexus 프로젝트의 공식 단일 진실 공급원(SSOT) 문서입니다.
