@@ -2,30 +2,24 @@ package com.lecture.enrollment.kafka;
 
 import lombok.*;
 
-/**
- * Kafka 이벤트 메시지 DTO
- */
 public class KafkaEvent {
 
-    /**
-     * Payment Service → Enrollment Service
-     * 결제 완료 이벤트 수신
-     */
     @Getter
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
     public static class PaymentCompletedEvent {
+        private String eventId;
         private Long paymentId;
+        private Long enrollmentId;
         private Long userId;
-        private Long courseId;
-        private String status; // COMPLETED
+        private Long projectId;
+        private Long approvedBy;
+        private String transactionId;
+        private String status;
+        private String occurredAt;
     }
 
-    /**
-     * Enrollment Service → Recommend Service
-     * 수강 활성화 완료 이벤트 발행
-     */
     @Getter
     @NoArgsConstructor
     @AllArgsConstructor
@@ -33,6 +27,7 @@ public class KafkaEvent {
     public static class EnrollmentCompletedEvent {
         private Long enrollmentId;
         private Long userId;
-        private Long courseId;
+        private Long projectId;
+        private String status;
     }
 }

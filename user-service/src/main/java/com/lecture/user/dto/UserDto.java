@@ -30,7 +30,6 @@ public class UserDto {
         @NotBlank(message = "이름은 필수입니다")
         private String name;
 
-        private User.Role role; // STUDENT or INSTRUCTOR
     }
 
     // 사용자 정보 응답

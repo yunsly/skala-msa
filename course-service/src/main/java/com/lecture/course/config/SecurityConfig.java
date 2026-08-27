@@ -56,8 +56,9 @@ public class SecurityConfig {
 //                 .requestMatchers(HttpMethod.GET, "/api/courses", "/api/courses/**").permitAll()
 //                 // 내부 서비스 호출 (Client Credentials)
 //                 .requestMatchers("/api/courses/internal/**").hasAuthority("SCOPE_service.read")
-//                 // 강의 등록은 INSTRUCTOR만
-//                 .requestMatchers(HttpMethod.POST, "/api/courses").hasAuthority("ROLE_INSTRUCTOR")
+//                 // 프로젝트와 자산 등록은 LEADER 또는 ADMIN만
+//                 .requestMatchers(HttpMethod.POST, "/api/courses/**")
+//                 .hasAnyAuthority("ROLE_LEADER", "ROLE_ADMIN")
 //                 .anyRequest().authenticated()
 //             )
 //             .oauth2ResourceServer(oauth2 -> oauth2

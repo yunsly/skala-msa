@@ -16,22 +16,21 @@ public class EnrollmentKafkaProducer {
     @Value("${kafka.topic.enrollment-completed}")
     private String enrollmentCompletedTopic;
 
-    /**
-     * enrollment.completed 이벤트 발행
-     * → Recommend Service가 수신하여 추천 갱신
-     */
     public void publishEnrollmentCompleted(KafkaEvent.EnrollmentCompletedEvent event) {
-        log.info("[Kafka Producer] enrollment.completed 발행 - enrollmentId: {}, userId: {}, courseId: {}",
-                event.getEnrollmentId(), event.getUserId(), event.getCourseId());
-
-        kafkaTemplate.send(enrollmentCompletedTopic, String.valueOf(event.getUserId()), event)
-                .whenComplete((result, ex) -> {
-                    if (ex != null) {
-                        log.error("[Kafka Producer] enrollment.completed 발행 실패: {}", ex.getMessage());
-                    } else {
-                        log.info("[Kafka Producer] enrollment.completed 발행 성공 - offset: {}",
-                                result.getRecordMetadata().offset());
-                    }
-                });
+        kafkaTemplate.send(
+                enrollmentCompletedTopic,
+                String.valueOf(event.getProjectId()),
+                event
+        ).whenComplete((result, ex) -> {
+            if (ex != null) {
+                log.error("[Kafka Producer] enrollment.completed 발행 실패: {}", ex.getMessage());
+            } else {
+                log.info(
+                        "[Kafka Producer] enrollment.completed 발행 성공 - enrollmentId: {}, offset: {}",
+                        event.getEnrollmentId(),
+                        result.getRecordMetadata().offset()
+                );
+            }
+        });
     }
 }

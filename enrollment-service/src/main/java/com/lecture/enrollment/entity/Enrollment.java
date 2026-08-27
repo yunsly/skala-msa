@@ -9,10 +9,19 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "enrollments",
-       uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "course_id"}))
+@Table(
+        name = "enrollments",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uq_enrollments_user_project",
+                columnNames = {"user_id", "project_id"}
+        ),
+        indexes = {
+                @Index(name = "idx_enrollments_project_status", columnList = "project_id, status"),
+                @Index(name = "idx_enrollments_user_status", columnList = "user_id, status")
+        }
+)
 @Getter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
 @EntityListeners(AuditingEntityListener.class)
@@ -25,25 +34,32 @@ public class Enrollment {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "course_id", nullable = false)
-    private Long courseId;
+    @Column(name = "project_id", nullable = false)
+    private Long projectId;
+
+    @Column(columnDefinition = "TEXT")
+    private String reason;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20)
     @Builder.Default
     private Status status = Status.PENDING;
 
+    @Column(name = "last_accessed_at")
+    private LocalDateTime lastAccessedAt;
+
     @CreatedDate
-    @Column(updatable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @LastModifiedDate
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
     public enum Status {
-        PENDING,   // 수강신청 완료, 결제 대기
-        ACTIVE,    // 결제 완료, 수강 활성화
-        CANCELLED  // 취소
+        PENDING,
+        ACTIVE,
+        CANCELLED
     }
 
     public void activate() {
@@ -52,5 +68,17 @@ public class Enrollment {
 
     public void cancel() {
         this.status = Status.CANCELLED;
+    }
+
+    public void reapply(String reason) {
+        if (status != Status.CANCELLED) {
+            throw new IllegalStateException("취소된 프로젝트 접근 요청만 재신청할 수 있습니다.");
+        }
+        this.reason = reason;
+        this.status = Status.PENDING;
+    }
+
+    public void markAccessed(LocalDateTime accessedAt) {
+        this.lastAccessedAt = accessedAt;
     }
 }
