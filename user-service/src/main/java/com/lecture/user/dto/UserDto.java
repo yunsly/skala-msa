@@ -3,6 +3,7 @@ package com.lecture.user.dto;
 import com.lecture.user.entity.User;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -30,6 +31,8 @@ public class UserDto {
         @NotBlank(message = "이름은 필수입니다")
         private String name;
 
+        @NotNull(message = "역할은 필수입니다")
+        private User.Role role;
     }
 
     // 사용자 정보 응답

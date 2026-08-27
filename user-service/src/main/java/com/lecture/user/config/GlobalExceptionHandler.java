@@ -3,6 +3,8 @@ package com.lecture.user.config;
 import com.lecture.user.dto.UserDto;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -26,6 +28,20 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining(", "));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(UserDto.ApiResponse.error(message));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<UserDto.ApiResponse<Void>> handleUnreadableMessage(
+            HttpMessageNotReadableException e
+    ) {
+        return ResponseEntity.badRequest()
+                .body(UserDto.ApiResponse.error("요청 값의 형식이 올바르지 않습니다."));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<UserDto.ApiResponse<Void>> handleAccessDenied(AccessDeniedException e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(UserDto.ApiResponse.error(e.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)

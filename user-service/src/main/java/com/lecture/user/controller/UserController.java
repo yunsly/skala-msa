@@ -1,11 +1,15 @@
 package com.lecture.user.controller;
 
 import com.lecture.user.dto.UserDto;
+import com.lecture.user.security.AuthenticatedUser;
+import com.lecture.user.security.AuthenticatedUserResolver;
 import com.lecture.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -14,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+    private final AuthenticatedUserResolver authenticatedUserResolver;
 
     /**
      * POST /users/register - 회원가입 (인증 불필요)
@@ -31,8 +36,19 @@ public class UserController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<UserDto.ApiResponse<UserDto.UserResponse>> getUser(
-            @PathVariable Long id) {
-        UserDto.UserResponse response = userService.getUserById(id);
+            @PathVariable Long id,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader(value = "X-User-Id", required = false) Long gatewayUserId,
+            @RequestHeader(value = "X-User-Role", required = false) String gatewayRole) {
+        AuthenticatedUser authenticatedUser = authenticatedUserResolver.resolve(
+                jwt,
+                gatewayUserId,
+                gatewayRole
+        );
+        UserDto.UserResponse response = userService.getUserByIdAsAdmin(
+                authenticatedUser.userId(),
+                id
+        );
         return ResponseEntity.ok(UserDto.ApiResponse.success(response));
     }
 
@@ -42,9 +58,16 @@ public class UserController {
      */
     @GetMapping("/me")
     public ResponseEntity<UserDto.ApiResponse<UserDto.UserResponse>> getMe(
-            @RequestHeader("X-User-Id") Long userId) {
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader(value = "X-User-Id", required = false) Long gatewayUserId,
+            @RequestHeader(value = "X-User-Role", required = false) String gatewayRole) {
 
-        UserDto.UserResponse response = userService.getUserById(userId);
+        AuthenticatedUser authenticatedUser = authenticatedUserResolver.resolve(
+                jwt,
+                gatewayUserId,
+                gatewayRole
+        );
+        UserDto.UserResponse response = userService.getCurrentUser(authenticatedUser.userId());
         return ResponseEntity.ok(UserDto.ApiResponse.success(response));
     }
 

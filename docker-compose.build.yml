@@ -88,9 +88,10 @@ services:
       - "9000:9000"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - SPRING_DATASOURCE_URL=jdbc:mariadb://lecturedb:3306/lecture_db
+      - SPRING_DATASOURCE_URL=jdbc:mariadb://lecturedb:3306/auth_compat_db
       - SPRING_DATASOURCE_USERNAME=manager
       - SPRING_DATASOURCE_PASSWORD=SqlDba-1
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=none
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
     depends_on:
       mariadb:
@@ -144,7 +145,7 @@ services:
       - SPRING_DATASOURCE_PASSWORD=SqlDba-1
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI=http://auth-server:9000/oauth2/jwks
-      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://auth-server:9000
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://localhost:8080
     depends_on:
       mariadb:
         condition: service_healthy

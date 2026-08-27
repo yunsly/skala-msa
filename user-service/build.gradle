@@ -24,6 +24,7 @@ ext {
 dependencies {
     // Web
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
     // Spring Security + OAuth2 Resource Server
     implementation 'org.springframework.boot:spring-boot-starter-security'
