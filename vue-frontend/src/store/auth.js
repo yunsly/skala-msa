@@ -7,12 +7,30 @@ const AUTH_SERVER_URL = import.meta.env.VITE_AUTH_SERVER_URL || 'http://localhos
 // 실제 운영 중인 백엔드(auth-server OAuth2 + user-service STUDENT/INSTRUCTOR)에
 // 맞춘 인증 스토어. KeyNexus 문서상의 ADMIN/LEADER/MEMBER, 직접 로그인
 // (POST /api/users/login)은 아직 백엔드에 없어 여기서는 쓰지 않는다.
+//
+// 팀 합의(역할 매핑): LEADER = INSTRUCTOR, MEMBER = STUDENT.
+// ADMIN은 이 둘과 무관한 전사 최상위 권한자 개념이라 별도로 두되, User.Role enum이
+// STUDENT/INSTRUCTOR뿐이라 지금 백엔드로는 ADMIN 계정 자체가 생성될 수 없다 — 추후
+// 백엔드에 ADMIN이 추가되면 자연히 인식되도록 매핑만 해둔다.
+const BACKEND_ROLE_TO_KEYNEXUS_ROLE = {
+  INSTRUCTOR: 'LEADER',
+  STUDENT: 'MEMBER'
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const accessToken = ref(sessionStorage.getItem('access_token') || null)
   const user = ref(JSON.parse(sessionStorage.getItem('user') || 'null'))
 
   const isAuthenticated = computed(() => !!accessToken.value)
-  const isInstructor = computed(() => user.value?.role === 'INSTRUCTOR')
+
+  const keyNexusRole = computed(() => {
+    const raw = user.value?.role
+    if (raw === 'ADMIN') return 'ADMIN'
+    return BACKEND_ROLE_TO_KEYNEXUS_ROLE[raw] ?? null
+  })
+  const isAdmin = computed(() => keyNexusRole.value === 'ADMIN')
+  const isLeader = computed(() => keyNexusRole.value === 'LEADER')
+  const isMember = computed(() => keyNexusRole.value === 'MEMBER')
 
   function setToken(token) {
     accessToken.value = token
@@ -83,7 +101,10 @@ export const useAuthStore = defineStore('auth', () => {
     accessToken,
     user,
     isAuthenticated,
-    isInstructor,
+    keyNexusRole,
+    isAdmin,
+    isLeader,
+    isMember,
     setToken,
     setUser,
     fetchUser,

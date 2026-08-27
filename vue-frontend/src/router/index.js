@@ -92,7 +92,10 @@ router.beforeEach((to) => {
     return { name: 'ProjectCatalog' }
   }
 
-  if (to.meta.allowedRoles && !to.meta.allowedRoles.includes(auth.user?.role)) {
+  // allowedRoles는 KeyNexus 역할(ADMIN/LEADER/MEMBER) 기준이다. 실제 로그인 사용자는
+  // 백엔드 STUDENT/INSTRUCTOR로 들어오므로 store/auth.js의 keyNexusRole(매핑: LEADER=
+  // INSTRUCTOR, MEMBER=STUDENT)로 비교한다.
+  if (to.meta.allowedRoles && !to.meta.allowedRoles.includes(auth.keyNexusRole)) {
     return { name: 'ProjectCatalog' }
   }
 })
