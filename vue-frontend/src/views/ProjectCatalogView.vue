@@ -76,14 +76,15 @@
 
     <!-- 접근 신청 모달 -->
     <div v-if="requestModal.open" class="modal-backdrop" @click.self="closeRequestModal">
-      <div class="modal">
-        <h2>접근 권한 신청</h2>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="request-modal-title">
+        <h2 id="request-modal-title">접근 권한 신청</h2>
         <p class="modal-sub">{{ requestModal.project?.name }}</p>
 
         <form @submit.prevent="submitRequest">
           <label class="form-label" for="reason">신청 사유</label>
           <textarea
             id="reason"
+            ref="requestReasonInput"
             v-model.trim="requestModal.reason"
             class="form-textarea"
             rows="4"
@@ -106,12 +107,12 @@
 
     <!-- 새 프로젝트 모달 -->
     <div v-if="createModal.open" class="modal-backdrop" @click.self="closeCreateModal">
-      <div class="modal">
-        <h2>새 프로젝트</h2>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="create-modal-title">
+        <h2 id="create-modal-title">새 프로젝트</h2>
 
         <form @submit.prevent="submitCreate">
           <label class="form-label" for="proj-name">프로젝트명</label>
-          <input id="proj-name" v-model.trim="createModal.name" type="text" class="form-input" placeholder="예: Payment Platform" required />
+          <input id="proj-name" ref="createNameInput" v-model.trim="createModal.name" type="text" class="form-input" placeholder="예: Payment Platform" required />
 
           <label class="form-label" for="proj-desc">설명</label>
           <textarea
@@ -138,7 +139,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import AppNav from '@/components/AppNav.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { useAuthStore } from '@/store/auth.js'
@@ -206,14 +207,30 @@ async function loadAll() {
 
 onMounted(loadAll)
 
+// 모달 접근성: ESC로 닫기, 열릴 때 첫 입력으로 포커스 이동, 닫히면 트리거로 포커스 복귀.
+// (요구사항: "모달 접근성" 테스트 항목 — #9)
+let lastFocusedEl = null
+
+function handleEscape(e) {
+  if (e.key !== 'Escape') return
+  if (requestModal.value.open) closeRequestModal()
+  if (createModal.value.open) closeCreateModal()
+}
+onMounted(() => window.addEventListener('keydown', handleEscape))
+onUnmounted(() => window.removeEventListener('keydown', handleEscape))
+
 // 접근 신청 모달
 const requestModal = ref({ open: false, project: null, reason: '', loading: false, error: '' })
+const requestReasonInput = ref(null)
 
 function openRequestModal(project) {
+  lastFocusedEl = document.activeElement
   requestModal.value = { open: true, project, reason: '', loading: false, error: '' }
+  nextTick(() => requestReasonInput.value?.focus())
 }
 function closeRequestModal() {
   requestModal.value.open = false
+  lastFocusedEl?.focus?.()
 }
 async function submitRequest() {
   requestModal.value.error = ''
@@ -233,12 +250,16 @@ async function submitRequest() {
 
 // 새 프로젝트 모달 (LEADER 전용)
 const createModal = ref({ open: false, name: '', description: '', loading: false, error: '' })
+const createNameInput = ref(null)
 
 function openCreateModal() {
+  lastFocusedEl = document.activeElement
   createModal.value = { open: true, name: '', description: '', loading: false, error: '' }
+  nextTick(() => createNameInput.value?.focus())
 }
 function closeCreateModal() {
   createModal.value.open = false
+  lastFocusedEl?.focus?.()
 }
 async function submitCreate() {
   createModal.value.error = ''
