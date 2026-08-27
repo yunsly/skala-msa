@@ -79,6 +79,7 @@ function handleLogout() {
   display: flex;
   gap: 4px;
   flex: 1;
+  min-width: 0;
 }
 .nav-link {
   padding: 6px 12px;
@@ -87,6 +88,8 @@ function handleLogout() {
   font-weight: 500;
   color: var(--color-text-secondary);
   transition: var(--transition);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .nav-link:hover,
 .nav-link.active {
@@ -121,4 +124,22 @@ function handleLogout() {
   color: var(--color-text-primary);
 }
 .btn-sm { padding: 6px 12px; font-size: 12.5px; }
+
+@media (max-width: 640px) {
+  .nav-inner {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 10px 16px;
+    row-gap: 8px;
+  }
+  .brand { order: 1; }
+  .nav-actions { order: 2; margin-left: auto; }
+  .nav-links {
+    order: 3;
+    width: 100%;
+    flex: none;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+}
 </style>
