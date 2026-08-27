@@ -76,8 +76,11 @@
               class="row"
             >
               <div class="row-main">
-                <h3>{{ a.title }}</h3>
-                <p class="mono">{{ a.projectName }}</p>
+                <div class="row-top">
+                  <h3>{{ a.title }}</h3>
+                  <span class="mono muted">{{ a.projectName }}</span>
+                </div>
+                <p class="evidence">{{ a.evidence }} <span class="action-inline">→ {{ a.recommendedAction }}</span></p>
               </div>
               <RiskBadge :level="a.riskLevel" :score="a.riskScore" />
             </router-link>
@@ -318,6 +321,7 @@ onMounted(load)
 .row:hover { border-color: var(--color-border-hover); }
 .row-main h3 { font-size: 13.5px; font-weight: 600; color: var(--color-text-primary); margin-bottom: 2px; }
 .row-main p { font-size: 11px; color: var(--color-text-muted); }
+.row-main .evidence { color: var(--color-text-secondary); }
 
 .triple-grid {
   display: grid;
@@ -330,6 +334,8 @@ onMounted(load)
   border-bottom: 1px solid var(--color-border);
 }
 .mini-top { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; margin-bottom: 3px; }
+.row-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 2px; }
+.action-inline { color: var(--color-primary); }
 .mini-list a { color: var(--color-text-primary); }
 .mini-list a:hover { color: var(--color-primary); }
 .muted { color: var(--color-text-muted); font-size: 11px; white-space: nowrap; }
