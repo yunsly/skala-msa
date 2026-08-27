@@ -102,7 +102,9 @@ async function loadAll() {
 
     // 응답에 프로젝트명/설명이 이미 포함돼 있으면 그대로 쓰고, projectId만 있으면
     // 프로젝트 목록에서 찾아 보강한다(단건 조회 API가 없어 다른 화면과 동일 패턴).
-    const needsJoin = myProjects.some((m) => !m.name && !m.projectName)
+    // name은 있는데 description만 빠진 경우도 join이 필요하다 — 예: 승인 처리 후
+    // 응답에 name만 실려오고 description은 안 오는 경우 (실제 발생 확인됨).
+    const needsJoin = myProjects.some((m) => (!m.name && !m.projectName) || !m.description)
     let projectsById = {}
 
     if (needsJoin) {
