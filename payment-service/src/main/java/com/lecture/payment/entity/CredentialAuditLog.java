@@ -67,6 +67,7 @@ public class CredentialAuditLog {
         API_KEY_UPDATED,
         API_KEY_ROTATED,
         API_KEY_REVOKED,
+        CREDENTIAL_VIEWED,
         SUBSCRIPTION_CREATED,
         SUBSCRIPTION_UPDATED,
         PROJECT_ACCESS_REQUESTED,

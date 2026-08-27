@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     # 서비스 URL
     enrollment_service_url: str = "http://localhost:8083"
     course_service_url: str = "http://localhost:8082"
+    payment_service_url: str = "http://localhost:8084"
+    risk_provider_timeout_seconds: float = 5.0
 
     # Kafka
     kafka_bootstrap_servers: str = "localhost:9092"

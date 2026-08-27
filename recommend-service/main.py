@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.config.settings import settings
 from app.kafka.consumer import enrollment_consumer
-from app.router import recommend_router
+from app.router import recommend_router, risk_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -55,6 +55,7 @@ app = FastAPI(
 )
 
 # 라우터 등록
+app.include_router(risk_router.router)
 app.include_router(recommend_router.router)
 
 

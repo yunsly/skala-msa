@@ -1,6 +1,7 @@
 package com.lecture.course.service;
 
 import com.lecture.course.client.EnrollmentServiceClient;
+import com.lecture.course.client.CredentialAuditClient;
 import com.lecture.course.dto.CourseDto;
 import com.lecture.course.dto.ProjectDto;
 import com.lecture.course.entity.Course;
@@ -35,6 +36,8 @@ class CourseServiceTest {
     private ProjectRepository projectRepository;
     @Mock
     private EnrollmentServiceClient enrollmentServiceClient;
+    @Mock
+    private CredentialAuditClient credentialAuditClient;
 
     private CourseService courseService;
 
@@ -43,7 +46,8 @@ class CourseServiceTest {
         courseService = new CourseService(
                 courseRepository,
                 projectRepository,
-                enrollmentServiceClient
+                enrollmentServiceClient,
+                credentialAuditClient
         );
     }
 
@@ -161,6 +165,22 @@ class CourseServiceTest {
 
         assertThat(response.getSecretValue()).isEqualTo("demo-secret");
         assertThat(response.getActiveMemberCount()).isEqualTo(2L);
+    }
+
+    @Test
+    void deniedDetailAccessCreatesAuditEventWithoutReturningSecret() {
+        Course asset = course(1L, 1L, "Demo Key", Course.Category.API_KEY);
+        when(courseRepository.findById(1L)).thenReturn(Optional.of(asset));
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project(1L, 20L)));
+        when(enrollmentServiceClient.getActiveProjectIds(10L)).thenReturn(List.of());
+
+        assertThatThrownBy(() -> courseService.getCourse(
+                1L,
+                actor(10L, AuthenticatedActor.Role.MEMBER)
+        )).isInstanceOf(AccessDeniedException.class);
+
+        verify(credentialAuditClient).recordCredentialViewDenied(1L, 1L, 10L);
+        verify(enrollmentServiceClient, never()).countActiveMembers(any(Long.class));
     }
 
     @Test
