@@ -86,6 +86,30 @@ public class EnrollmentService {
                 .toList();
     }
 
+    /**
+     * FR-03-02: 본인이 승인된(ACTIVE) 프로젝트 목록과 신청 대기(PENDING) 목록을 상태별로 분리해 반환한다.
+     * 조회 기준은 항상 요청자(X-User-Id)이므로 다른 사용자의 신청 내역은 노출되지 않는다.
+     */
+    public EnrollmentDto.MyProjectsResponse getMyProjects(Long userId) {
+        List<Enrollment> enrollments = enrollmentRepository.findByUserId(userId);
+
+        List<EnrollmentDto.EnrollmentResponse> activeProjects = enrollments.stream()
+                .filter(e -> e.getStatus() == Enrollment.Status.ACTIVE)
+                .map(EnrollmentDto.EnrollmentResponse::from)
+                .toList();
+
+        List<EnrollmentDto.EnrollmentResponse> pendingProjects = enrollments.stream()
+                .filter(e -> e.getStatus() == Enrollment.Status.PENDING)
+                .map(EnrollmentDto.EnrollmentResponse::from)
+                .toList();
+
+        return EnrollmentDto.MyProjectsResponse.builder()
+                .userId(userId)
+                .activeProjects(activeProjects)
+                .pendingProjects(pendingProjects)
+                .build();
+    }
+
     public EnrollmentDto.EnrollmentHistoryResponse getEnrollmentHistory(Long userId) {
         List<Long> activeProjectIds = enrollmentRepository
                 .findByUserIdAndStatus(userId, Enrollment.Status.ACTIVE)
