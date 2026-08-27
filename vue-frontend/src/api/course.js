@@ -14,24 +14,19 @@ export const courseApi = {
     return api.post('/api/courses/projects', data)
   },
 
-  getCourses(params) {
+  // 프로젝트 내 자산 목록. { projectId } 형태로 호출.
+  getAssets(params) {
     return api.get('/api/courses', { params })
   },
 
-  getAll(params) {
-    return api.get('/api/courses', { params })
-  },
-
-  getById(id) {
+  getAsset(id) {
     return api.get(`/api/courses/${id}`)
   },
 
-  create(data) {
+  // 신규 자산 등록 (LEADER/ADMIN 전용) — { projectId, title, description, category,
+  // provider, planName?, secretValue }
+  createAsset(data) {
     return api.post('/api/courses', data)
-  },
-
-  update(id, data) {
-    return api.put(`/api/courses/${id}`, data)
   },
 
   // 부작용이 있는 호출(평문 노출 + last_accessed_at 갱신 + 감사 로그 기록)이므로
