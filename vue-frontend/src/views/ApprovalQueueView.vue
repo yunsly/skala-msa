@@ -8,8 +8,14 @@
         <p class="sub">내 프로젝트로 들어온 접근 신청을 승인하거나 거절하세요.</p>
       </div>
 
+      <!-- 준비 중 (백엔드 승인 API 미연동) -->
+      <div v-if="!FEATURES.approvalQueue" class="state-box prep-box">
+        <p class="prep-title">승인 대기 기능은 준비 중입니다.</p>
+        <p>payment-service 의 승인 API 연동 후 활성화됩니다.</p>
+      </div>
+
       <!-- 로딩 -->
-      <div v-if="loading" class="state-box">불러오는 중...</div>
+      <div v-else-if="loading" class="state-box">불러오는 중...</div>
 
       <!-- 에러 -->
       <div v-else-if="error" class="state-box">
@@ -110,6 +116,7 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import AppNav from '@/components/AppNav.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { paymentApi } from '@/api/payment.js'
+import { FEATURES } from '@/config/features.js'
 
 const loading = ref(true)
 const error = ref('')
@@ -146,7 +153,10 @@ async function loadAll() {
     loading.value = false
   }
 }
-onMounted(loadAll)
+onMounted(() => {
+  if (FEATURES.approvalQueue) loadAll()
+  else loading.value = false
+})
 
 // 모달 접근성: ESC로 닫기, 열릴 때 첫 포커스 대상으로 이동, 닫히면 트리거로 복귀,
 // Tab이 모달 밖으로 새지 않게 포커스 트랩. (ProjectCatalogView #9와 동일 패턴 — #17
@@ -288,6 +298,8 @@ async function submitReject() {
   color: var(--color-text-muted);
   font-size: 13px;
 }
+.prep-box { display: flex; flex-direction: column; gap: 6px; }
+.prep-title { font-size: 14px; font-weight: 600; color: var(--color-text-secondary); }
 
 /* 모달 (ProjectCatalogView와 동일 패턴) */
 .modal-backdrop {

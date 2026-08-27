@@ -69,7 +69,14 @@ export const useAuthStore = defineStore('auth', () => {
     sessionStorage.removeItem('user')
 
     if (redirect) {
-      window.location.href = '/login'
+      // 프론트 토큰만 지우면 auth-server 의 SSO 세션(JSESSIONID)이 남아, 다시 로그인
+      // 버튼을 눌렀을 때 아이디/비밀번호 입력 없이 곧바로 재로그인된다.
+      // auth-server 세션까지 끊으려면 top-level 네비게이션으로 /logout 을 호출해야 한다
+      // (SameSite=Lax 쿠키라 fetch/iframe 으로는 세션이 안 끊긴다).
+      // 로그아웃 후 auth-server 기본 로그인 페이지(/login?logout)에 착지한다.
+      // 재로그인은 이 페이지가 아니라 SPA(홈)에서 시도해야 정상 흐름을 탄다
+      // — logoutSuccessUrl 을 SPA 로 돌리려면 프리빌트 auth-server 이미지 수정 필요.
+      window.location.href = `${AUTH_SERVER_URL}/logout`
     }
   }
 

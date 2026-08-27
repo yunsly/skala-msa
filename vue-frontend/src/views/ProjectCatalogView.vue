@@ -192,11 +192,15 @@ async function loadAll() {
         ? projectsRes.data
         : []
 
-    myProjects.value = Array.isArray(myRes.data?.data)
-      ? myRes.data.data
-      : Array.isArray(myRes.data)
-        ? myRes.data
-        : []
+    const myRaw = myRes.data?.data ?? myRes.data ?? []
+    // 백엔드는 { activeProjects[], pendingProjects[] } 로 그룹핑해 내려준다(플랫 배열도 허용).
+    myProjects.value = Array.isArray(myRaw)
+      ? myRaw
+      : [
+          ...(myRaw.activeProjects ?? []),
+          ...(myRaw.pendingProjects ?? []),
+          ...(myRaw.cancelledProjects ?? [])
+        ]
   } catch (e) {
     console.error('[ProjectCatalogView] 프로젝트 목록 조회 실패:', e)
     error.value = '프로젝트 목록을 불러오지 못했습니다.'

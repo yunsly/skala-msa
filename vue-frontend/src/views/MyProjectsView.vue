@@ -94,11 +94,16 @@ async function loadAll() {
 
   try {
     const myRes = await enrollmentApi.getMyProjects()
-    const myProjects = Array.isArray(myRes.data?.data)
-      ? myRes.data.data
-      : Array.isArray(myRes.data)
-        ? myRes.data
-        : []
+    const raw = myRes.data?.data ?? myRes.data ?? []
+    // 백엔드는 { userId, activeProjects[], pendingProjects[] } 로 그룹핑해 내려준다.
+    // 예전 계약(플랫 배열)도 함께 받아들인다.
+    const myProjects = Array.isArray(raw)
+      ? raw
+      : [
+          ...(raw.activeProjects ?? []),
+          ...(raw.pendingProjects ?? []),
+          ...(raw.cancelledProjects ?? [])
+        ]
 
     // 응답에 프로젝트명/설명이 이미 포함돼 있으면 그대로 쓰고, projectId만 있으면
     // 프로젝트 목록에서 찾아 보강한다(단건 조회 API가 없어 다른 화면과 동일 패턴).

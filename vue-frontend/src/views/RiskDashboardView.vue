@@ -8,14 +8,20 @@
           <h1>위험도 대시보드</h1>
           <p class="sub">규칙 기반 위험도 엔진이 산출한 전사 통합 리포트입니다.</p>
         </div>
-        <div v-if="!loading && !error" class="refresh-box">
+        <div v-if="FEATURES.riskDashboard && !loading && !error" class="refresh-box">
           <span class="mono analyzed-at">마지막 분석 · {{ formatDate(report.analyzedAt) }}</span>
           <button type="button" class="btn btn-secondary btn-sm" :disabled="loading" @click="load">새로고침</button>
         </div>
       </div>
 
+      <!-- 준비 중 (백엔드 위험도 API 미연동) -->
+      <div v-if="!FEATURES.riskDashboard" class="state-box prep-box">
+        <p class="prep-title">위험도 대시보드는 준비 중입니다.</p>
+        <p>recommend-service 의 전사 위험도 API 연동 후 활성화됩니다.</p>
+      </div>
+
       <!-- 로딩 -->
-      <div v-if="loading" class="state-box">불러오는 중... (프로젝트별 위험도 분석에는 다소 시간이 걸릴 수 있습니다)</div>
+      <div v-else-if="loading" class="state-box">불러오는 중... (프로젝트별 위험도 분석에는 다소 시간이 걸릴 수 있습니다)</div>
 
       <!-- 에러 -->
       <div v-else-if="error" class="state-box">
@@ -144,6 +150,7 @@ import { ref, computed, onMounted } from 'vue'
 import AppNav from '@/components/AppNav.vue'
 import RiskBadge from '@/components/RiskBadge.vue'
 import { recommendApi } from '@/api/recommend.js'
+import { FEATURES } from '@/config/features.js'
 
 const loading = ref(true)
 const error = ref('')
@@ -202,7 +209,10 @@ async function load() {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  if (FEATURES.riskDashboard) load()
+  else loading.value = false
+})
 </script>
 
 <style scoped>
@@ -354,6 +364,8 @@ onMounted(load)
   gap: 14px;
 }
 .state-box.small { padding: 30px 0; }
+.prep-box { gap: 6px; }
+.prep-title { font-size: 14px; font-weight: 600; color: var(--color-text-secondary); }
 
 @media (max-width: 900px) {
   .triple-grid { grid-template-columns: 1fr; }

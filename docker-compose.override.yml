@@ -1,0 +1,9 @@
+# Local dev override (auto-loaded by `docker compose`).
+# auth-server 이미지(msa-lecture/auth-server:1.0)는 레거시 Role(STUDENT/INSTRUCTOR)
+# 스키마를 기대한다. lecture_db.users 는 이미 ADMIN/LEADER/MEMBER 로 전환됐으므로
+# auth-server 는 레거시 값을 그대로 노출하는 auth_compat_db.users VIEW 를 바라봐야 한다.
+# (docker-compose.yml 의 lecture_db 설정은 이 이미지 기준으로는 부정확하다.)
+services:
+  auth-server:
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mariadb://lecturedb:3306/auth_compat_db

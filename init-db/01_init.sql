@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS payments (
 
 CREATE TABLE IF NOT EXISTS credential_audit_logs (
     id          BIGINT          NOT NULL AUTO_INCREMENT,
-    event_id    CHAR(36)        NOT NULL COMMENT '감사 이벤트 UUID',
+    event_id    VARCHAR(36)     NOT NULL COMMENT '감사 이벤트 UUID',
     project_id  BIGINT          NULL COMMENT '관련 projects.id',
     course_id   BIGINT          NULL COMMENT '관련 courses.id',
     user_id     BIGINT          NULL COMMENT '행위자 users.id',
