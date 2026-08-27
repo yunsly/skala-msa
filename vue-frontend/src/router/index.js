@@ -65,10 +65,14 @@ const routes = [
   {
     path: '/risk-dashboard',
     name: 'RiskDashboard',
-    // ADMIN 전용 — LEADER는 여기 접근 못하고 ProjectDetailView에서 본인 프로젝트
-    // 현황만 확인한다.
+    // 원래 설계는 ADMIN 전용. 다만 User.Role enum에 ADMIN이 없어(백엔드/이미지 재배포
+    // 없이는 추가 불가) 진짜 ADMIN 계정을 만들 수 없다. 팀 합의: "모든 프로젝트의
+    // LEADER"인 계정 하나를 만들어 사실상 전사 뷰를 대신하게 하기로 했다 — 그래서
+    // 라우터 가드는 LEADER도 통과시킨다. 데이터 자체(전 프로젝트 커버리지)는 그 계정이
+    // 실제로 모든 프로젝트의 리더일 때만 ADMIN과 동등해지며, 이는 화면/데이터 레벨의
+    // 책임이지 라우터가 보장해줄 수 없다.
     component: () => import('@/views/RiskDashboardView.vue'),
-    meta: { requiresAuth: true, allowedRoles: ['ADMIN'] }
+    meta: { requiresAuth: true, allowedRoles: ['ADMIN', 'LEADER'] }
   }
 ]
 
