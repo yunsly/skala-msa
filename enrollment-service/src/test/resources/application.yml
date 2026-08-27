@@ -1,0 +1,63 @@
+# 테스트 전용 설정 - 외부 인프라(MariaDB / Kafka / Eureka) 없이 컨텍스트가 로드되도록 오버라이드
+server:
+  port: 0
+
+spring:
+  application:
+    name: enrollment-service
+
+  datasource:
+    url: jdbc:h2:mem:enrollment;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: enrollment-service-test
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+    listener:
+      auto-startup: false
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:9000/oauth2/jwks
+          issuer-uri: http://localhost:9000
+
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+
+service:
+  auth-server:
+    url: http://localhost:9000
+  course-service:
+    url: http://localhost:8082
+  payment-service:
+    url: http://localhost:8084
+  oauth:
+    client-id: service-client
+    client-secret: service-secret
+
+kafka:
+  topic:
+    payment-completed: payment.completed
+    enrollment-completed: enrollment.completed

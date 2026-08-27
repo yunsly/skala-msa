@@ -31,13 +31,24 @@ public class EnrollmentController {
                 .body(EnrollmentDto.ApiResponse.success(response));
     }
 
-    @GetMapping({"/my", "/my-projects"})
+    @GetMapping("/my")
     public ResponseEntity<EnrollmentDto.ApiResponse<List<EnrollmentDto.EnrollmentResponse>>> getMine(
             @RequestHeader("X-User-Id") Long userId
     ) {
         return ResponseEntity.ok(
                 EnrollmentDto.ApiResponse.success(
                         enrollmentService.getEnrollmentsByUser(userId)
+                )
+        );
+    }
+
+    @GetMapping("/my-projects")
+    public ResponseEntity<EnrollmentDto.ApiResponse<EnrollmentDto.MyProjectsResponse>> getMyProjects(
+            @RequestHeader("X-User-Id") Long userId
+    ) {
+        return ResponseEntity.ok(
+                EnrollmentDto.ApiResponse.success(
+                        enrollmentService.getMyProjects(userId)
                 )
         );
     }
