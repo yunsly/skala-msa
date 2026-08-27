@@ -4,17 +4,23 @@ import { authApi } from '@/api/auth.js'
 
 const AUTH_SERVER_URL = import.meta.env.VITE_AUTH_SERVER_URL || 'http://localhost:8080'
 
-// 실제 운영 중인 백엔드(auth-server OAuth2 + user-service STUDENT/INSTRUCTOR)에
-// 맞춘 인증 스토어. KeyNexus 문서상의 ADMIN/LEADER/MEMBER, 직접 로그인
-// (POST /api/users/login)은 아직 백엔드에 없어 여기서는 쓰지 않는다.
+// 실제 운영 중인 백엔드(auth-server OAuth2 + user-service)에 맞춘 인증 스토어.
+// 직접 로그인(POST /api/users/login)은 여전히 없다 — user-service는
+// OAuth2 Resource Server라 로그인은 auth-server의 Authorization Code Flow로
+// 처리된다(user-service/.../SecurityConfig.java의 oauth2ResourceServer 설정 확인).
 //
-// 팀 합의(역할 매핑): LEADER = INSTRUCTOR, MEMBER = STUDENT.
-// ADMIN은 이 둘과 무관한 전사 최상위 권한자 개념이라 별도로 두되, User.Role enum이
-// STUDENT/INSTRUCTOR뿐이라 지금 백엔드로는 ADMIN 계정 자체가 생성될 수 없다 — 추후
-// 백엔드에 ADMIN이 추가되면 자연히 인식되도록 매핑만 해둔다.
+// 역할 값은 과도기라 두 세대가 섞여 들어올 수 있다:
+// - 레거시: STUDENT/INSTRUCTOR (팀 합의 매핑: LEADER=INSTRUCTOR, MEMBER=STUDENT)
+// - 신규: user-service의 V4__user_role_domain.sql 마이그레이션이 DB 값을
+//   ADMIN/LEADER/MEMBER로 직접 바꾼다 — 이 마이그레이션이 배포되면 role이
+//   이미 "LEADER"/"MEMBER"로 내려오므로 그대로 통과시켜야 한다.
+// 아래 매핑은 두 세대 값을 전부 받아 같은 결과로 정규화한다.
 const BACKEND_ROLE_TO_KEYNEXUS_ROLE = {
   INSTRUCTOR: 'LEADER',
-  STUDENT: 'MEMBER'
+  STUDENT: 'MEMBER',
+  LEADER: 'LEADER',
+  MEMBER: 'MEMBER',
+  ADMIN: 'ADMIN'
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -23,11 +29,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => !!accessToken.value)
 
-  const keyNexusRole = computed(() => {
-    const raw = user.value?.role
-    if (raw === 'ADMIN') return 'ADMIN'
-    return BACKEND_ROLE_TO_KEYNEXUS_ROLE[raw] ?? null
-  })
+  const keyNexusRole = computed(() => BACKEND_ROLE_TO_KEYNEXUS_ROLE[user.value?.role] ?? null)
   const isAdmin = computed(() => keyNexusRole.value === 'ADMIN')
   const isLeader = computed(() => keyNexusRole.value === 'LEADER')
   const isMember = computed(() => keyNexusRole.value === 'MEMBER')
