@@ -16,6 +16,12 @@ const routes = [
     meta: { guestOnly: true }
   },
   {
+    // auth-server OAuth2 Authorization Code Flow의 redirect_uri 대상.
+    path: '/callback',
+    name: 'Callback',
+    component: () => import('@/views/CallbackView.vue')
+  },
+  {
     path: '/projects',
     name: 'ProjectCatalog',
     component: () => import('@/views/ProjectCatalogView.vue'),
@@ -59,10 +65,14 @@ const routes = [
   {
     path: '/risk-dashboard',
     name: 'RiskDashboard',
-    // ADMIN 전용 — LEADER는 여기 접근 못하고 ProjectDetailView에서 본인 프로젝트
-    // 현황만 확인한다.
+    // 원래 설계는 ADMIN 전용. 다만 User.Role enum에 ADMIN이 없어(백엔드/이미지 재배포
+    // 없이는 추가 불가) 진짜 ADMIN 계정을 만들 수 없다. 팀 합의: "모든 프로젝트의
+    // LEADER"인 계정 하나를 만들어 사실상 전사 뷰를 대신하게 하기로 했다 — 그래서
+    // 라우터 가드는 LEADER도 통과시킨다. 데이터 자체(전 프로젝트 커버리지)는 그 계정이
+    // 실제로 모든 프로젝트의 리더일 때만 ADMIN과 동등해지며, 이는 화면/데이터 레벨의
+    // 책임이지 라우터가 보장해줄 수 없다.
     component: () => import('@/views/RiskDashboardView.vue'),
-    meta: { requiresAuth: true, allowedRoles: ['ADMIN'] }
+    meta: { requiresAuth: true, allowedRoles: ['ADMIN', 'LEADER'] }
   }
 ]
 
@@ -86,7 +96,10 @@ router.beforeEach((to) => {
     return { name: 'ProjectCatalog' }
   }
 
-  if (to.meta.allowedRoles && !to.meta.allowedRoles.includes(auth.user?.role)) {
+  // allowedRoles는 KeyNexus 역할(ADMIN/LEADER/MEMBER) 기준이다. 실제 로그인 사용자는
+  // 백엔드 STUDENT/INSTRUCTOR로 들어오므로 store/auth.js의 keyNexusRole(매핑: LEADER=
+  // INSTRUCTOR, MEMBER=STUDENT)로 비교한다.
+  if (to.meta.allowedRoles && !to.meta.allowedRoles.includes(auth.keyNexusRole)) {
     return { name: 'ProjectCatalog' }
   }
 })

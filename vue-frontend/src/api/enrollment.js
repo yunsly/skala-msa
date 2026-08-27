@@ -1,16 +1,13 @@
 import api from './index.js'
 
 export const enrollmentApi = {
-  getMyEnrollments() {
-    return api.get('/api/enrollments/my')
+  // 프로젝트 접근 권한 신청 (reason 필수)
+  requestAccess(projectId, reason) {
+    return api.post('/api/enrollments', { projectId, reason })
   },
-  enroll(courseId) {
-    return api.post('/api/enrollments', { courseId })
-  },
-  cancel(enrollmentId) {
-    return api.delete(`/api/enrollments/${enrollmentId}`)
-  },
-  getRecommendations(userId) {
-    return api.get(`/api/recommend/${userId}`)
+
+  // 내가 속한(ACTIVE)/신청 대기(PENDING) 프로젝트 목록
+  getMyProjects() {
+    return api.get('/api/enrollments/my-projects')
   }
 }
