@@ -6,13 +6,21 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "payments")
+@Table(
+        name = "payments",
+        indexes = {
+                @Index(
+                        name = "idx_payments_enrollment_created",
+                        columnList = "enrollment_id, created_at"
+                ),
+                @Index(name = "idx_payments_project_status", columnList = "project_id, status")
+        }
+)
 @Getter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
 @EntityListeners(AuditingEntityListener.class)
@@ -22,44 +30,71 @@ public class Payment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "enrollment_id", nullable = false)
+    private Long enrollmentId;
+
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "course_id", nullable = false)
-    private Long courseId;
+    @Column(name = "project_id", nullable = false)
+    private Long projectId;
 
-    @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal amount;
+    @Column(name = "approved_by")
+    private Long approvedBy;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20)
     @Builder.Default
     private Status status = Status.PENDING;
 
-    // 외부 PG사 거래 ID (실습에서는 UUID로 대체)
     @Column(name = "transaction_id", unique = true)
     private String transactionId;
 
+    @Column(name = "decision_reason", columnDefinition = "TEXT")
+    private String decisionReason;
+
     @CreatedDate
-    @Column(updatable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @LastModifiedDate
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
     public enum Status {
-        PENDING,    // 결제 대기
-        COMPLETED,  // 결제 완료
-        FAILED,     // 결제 실패
-        CANCELLED   // 취소
+        PENDING,
+        COMPLETED,
+        FAILED,
+        CANCELLED
     }
 
-    public void complete(String transactionId) {
-        this.status = Status.COMPLETED;
+    public void approve(Long approverId, String transactionId, String reason) {
+        requirePending();
+        this.approvedBy = approverId;
         this.transactionId = transactionId;
+        this.decisionReason = reason;
+        this.status = Status.COMPLETED;
     }
 
-    public void fail() {
+    public void reject(Long approverId, String reason) {
+        requirePending();
+        this.approvedBy = approverId;
+        this.decisionReason = reason;
         this.status = Status.FAILED;
+    }
+
+    public void revoke(Long approverId, String reason) {
+        if (status != Status.COMPLETED) {
+            throw new IllegalStateException("COMPLETED 승인만 회수할 수 있습니다.");
+        }
+        this.approvedBy = approverId;
+        this.decisionReason = reason;
+        this.status = Status.CANCELLED;
+    }
+
+    private void requirePending() {
+        if (status != Status.PENDING) {
+            throw new IllegalStateException("PENDING 승인 티켓만 처리할 수 있습니다.");
+        }
     }
 }

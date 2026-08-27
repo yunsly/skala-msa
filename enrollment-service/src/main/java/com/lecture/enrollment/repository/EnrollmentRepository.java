@@ -12,10 +12,11 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
 
     List<Enrollment> findByUserIdAndStatus(Long userId, Enrollment.Status status);
 
-    Optional<Enrollment> findByUserIdAndCourseId(Long userId, Long courseId);
+    List<Enrollment> findByProjectIdAndStatus(Long projectId, Enrollment.Status status);
 
-    boolean existsByUserIdAndCourseId(Long userId, Long courseId);
+    Optional<Enrollment> findByUserIdAndProjectId(Long userId, Long projectId);
 
-    // 수강 완료(ACTIVE)된 강의 ID 목록 - 추천 서비스용
-    List<Enrollment> findByUserIdAndStatusIn(Long userId, List<Enrollment.Status> statuses);
+    boolean existsByUserIdAndProjectId(Long userId, Long projectId);
+
+    long countByProjectIdAndStatus(Long projectId, Enrollment.Status status);
 }
