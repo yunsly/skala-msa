@@ -43,7 +43,7 @@
 
     <!-- 승인 모달 -->
     <div v-if="approveModal.open" class="modal-backdrop" @click.self="closeApprove">
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="approve-modal-title">
+      <div ref="approveModalEl" class="modal" role="dialog" aria-modal="true" aria-labelledby="approve-modal-title">
         <h2 id="approve-modal-title">접근 승인</h2>
         <p class="modal-sub">{{ approveModal.item?.requesterName }} · {{ approveModal.item?.projectName }}</p>
 
@@ -74,19 +74,32 @@
 
     <!-- 거절 확인 -->
     <div v-if="rejectModal.open" class="modal-backdrop" @click.self="closeReject">
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="reject-modal-title">
+      <div ref="rejectModalEl" class="modal" role="dialog" aria-modal="true" aria-labelledby="reject-modal-title">
         <h2 id="reject-modal-title">접근 거절</h2>
-        <p class="modal-sub">{{ rejectModal.item?.requesterName }} · {{ rejectModal.item?.projectName }} 요청을 거절할까요?</p>
+        <p class="modal-sub">{{ rejectModal.item?.requesterName }} · {{ rejectModal.item?.projectName }}</p>
 
-        <div v-if="rejectModal.error" class="error-msg">{{ rejectModal.error }}</div>
+        <form @submit.prevent="submitReject">
+          <label class="form-label" for="rejectReason">거절 사유</label>
+          <textarea
+            id="rejectReason"
+            ref="rejectReasonInput"
+            v-model.trim="rejectModal.reason"
+            class="form-textarea"
+            rows="3"
+            placeholder="거절 사유를 입력하세요."
+            required
+          ></textarea>
 
-        <div class="modal-actions">
-          <button ref="rejectCancelBtn" type="button" class="btn btn-secondary" @click="closeReject">취소</button>
-          <button type="button" class="btn btn-danger" :disabled="rejectModal.loading" @click="submitReject">
-            <span v-if="rejectModal.loading">처리 중...</span>
-            <span v-else>거절</span>
-          </button>
-        </div>
+          <div v-if="rejectModal.error" class="error-msg">{{ rejectModal.error }}</div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" @click="closeReject">취소</button>
+            <button type="submit" class="btn btn-danger" :disabled="rejectModal.loading">
+              <span v-if="rejectModal.loading">처리 중...</span>
+              <span v-else>거절</span>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -135,21 +148,45 @@ async function loadAll() {
 }
 onMounted(loadAll)
 
-// 모달 접근성: ESC로 닫기, 열릴 때 첫 포커스 대상으로 이동, 닫히면 트리거로 복귀.
-// (ProjectCatalogView #9와 동일 패턴 — #17)
+// 모달 접근성: ESC로 닫기, 열릴 때 첫 포커스 대상으로 이동, 닫히면 트리거로 복귀,
+// Tab이 모달 밖으로 새지 않게 포커스 트랩. (ProjectCatalogView #9와 동일 패턴 — #17
+// 요구사항의 "키보드 접근성"까지 커버)
 let lastFocusedEl = null
 
-function handleEscape(e) {
-  if (e.key !== 'Escape') return
-  if (approveModal.value.open) closeApprove()
-  if (rejectModal.value.open) closeReject()
+function trapTab(e, containerEl) {
+  if (e.key !== 'Tab' || !containerEl) return
+  const focusables = containerEl.querySelectorAll(
+    'button:not(:disabled), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+  )
+  if (focusables.length === 0) return
+  const first = focusables[0]
+  const last = focusables[focusables.length - 1]
+
+  if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault()
+    last.focus()
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault()
+    first.focus()
+  }
 }
-onMounted(() => window.addEventListener('keydown', handleEscape))
-onUnmounted(() => window.removeEventListener('keydown', handleEscape))
+
+function handleModalKeydown(e) {
+  if (e.key === 'Escape') {
+    if (approveModal.value.open) closeApprove()
+    if (rejectModal.value.open) closeReject()
+    return
+  }
+  if (approveModal.value.open) trapTab(e, approveModalEl.value)
+  if (rejectModal.value.open) trapTab(e, rejectModalEl.value)
+}
+onMounted(() => window.addEventListener('keydown', handleModalKeydown))
+onUnmounted(() => window.removeEventListener('keydown', handleModalKeydown))
 
 // 승인
 const approveModal = ref({ open: false, item: null, reason: '', loading: false, error: '' })
 const approveReasonInput = ref(null)
+const approveModalEl = ref(null)
 
 function openApprove(item) {
   lastFocusedEl = document.activeElement
@@ -177,14 +214,14 @@ async function submitApprove() {
 }
 
 // 거절
-const rejectModal = ref({ open: false, item: null, loading: false, error: '' })
-const rejectCancelBtn = ref(null)
+const rejectModal = ref({ open: false, item: null, reason: '', loading: false, error: '' })
+const rejectReasonInput = ref(null)
+const rejectModalEl = ref(null)
 
 function openReject(item) {
   lastFocusedEl = document.activeElement
-  rejectModal.value = { open: true, item, loading: false, error: '' }
-  // 파괴적 작업이라 기본 포커스는 "거절"이 아니라 안전한 "취소"에 둔다.
-  nextTick(() => rejectCancelBtn.value?.focus())
+  rejectModal.value = { open: true, item, reason: '', loading: false, error: '' }
+  nextTick(() => rejectReasonInput.value?.focus())
 }
 function closeReject() {
   rejectModal.value.open = false
@@ -195,7 +232,7 @@ async function submitReject() {
   rejectModal.value.loading = true
 
   try {
-    await paymentApi.revoke(rejectModal.value.item.id)
+    await paymentApi.revoke(rejectModal.value.item.id, rejectModal.value.reason)
     items.value = items.value.filter((i) => i.id !== rejectModal.value.item.id)
     closeReject()
   } catch (e) {

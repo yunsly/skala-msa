@@ -11,9 +11,10 @@ export const paymentApi = {
     return api.post(`/api/payments/${id}/approve`, { decisionReason })
   },
 
-  // 계약상 revoke는 body가 명시되어 있지 않다 — PENDING 거절/ACTIVE 회수 모두
-  // 이 엔드포인트로 처리된다고 가정(별도 reject 엔드포인트 없음).
-  revoke(id) {
-    return api.post(`/api/payments/${id}/revoke`)
+  // 계약 문서엔 revoke의 body가 명시되어 있지 않지만, 이슈 #17 요구사항이
+  // "승인 또는 거절 사유를 입력해 결정을 처리"라고 명시해 approve와 동일하게
+  // decisionReason을 보낸다 — 백엔드가 이 필드를 안 받으면 무시될 뿐이라 안전하다.
+  revoke(id, decisionReason) {
+    return api.post(`/api/payments/${id}/revoke`, { decisionReason })
   }
 }
