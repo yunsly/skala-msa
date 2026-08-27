@@ -3,6 +3,7 @@ package com.lecture.payment.repository;
 import com.lecture.payment.entity.CredentialAuditLog;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface CredentialAuditLogRepository
@@ -13,5 +14,11 @@ public interface CredentialAuditLogRepository
     List<CredentialAuditLog> findByProjectIdAndActionOrderByCreatedAtDesc(
             Long projectId,
             CredentialAuditLog.Action action
+    );
+
+    long countByCourseIdAndResultAndCreatedAtGreaterThanEqual(
+            Long courseId,
+            CredentialAuditLog.Result result,
+            LocalDateTime createdAt
     );
 }
