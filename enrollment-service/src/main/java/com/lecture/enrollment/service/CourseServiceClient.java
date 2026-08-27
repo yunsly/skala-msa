@@ -11,6 +11,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 public class CourseServiceClient {
 
     private final WebClient.Builder webClientBuilder;
+    private final ServiceTokenProvider tokenProvider;
 
     public boolean existsProject(Long projectId) {
         try {
@@ -20,6 +21,7 @@ public class CourseServiceClient {
                             "http://course-service/api/courses/internal/projects/{projectId}/exists",
                             projectId
                     )
+                    .headers(headers -> headers.setBearerAuth(tokenProvider.getAccessToken()))
                     .retrieve()
                     .bodyToMono(Boolean.class)
                     .block();

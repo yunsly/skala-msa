@@ -26,7 +26,7 @@ spring:
       resourceserver:
         jwt:
           jwk-set-uri: http://localhost:9000/oauth2/jwks
-          issuer-uri: http://localhost:9000
+          issuer-uri: http://localhost:8080
 
 eureka:
   client:
@@ -37,8 +37,15 @@ eureka:
 
 # 서비스 간 통신 설정
 service:
+  auth-server:
+    url: ${AUTH_SERVER_URL:http://localhost:9000}
   user-service:
-    url: http://user-service
+    url: ${USER_SERVICE_URL:http://localhost:8081}
+  enrollment-service:
+    url: ${ENROLLMENT_SERVICE_URL:http://localhost:8083}
+  oauth:
+    client-id: ${SERVICE_OAUTH_CLIENT_ID:service-client}
+    client-secret: ${SERVICE_OAUTH_CLIENT_SECRET:service-secret}
 
 springdoc:
   api-docs:

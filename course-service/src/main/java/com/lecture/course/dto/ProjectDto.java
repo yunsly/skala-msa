@@ -22,22 +22,34 @@ public class ProjectDto {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
+    public static class UpdateRequest {
+        private String name;
+        private String description;
+        private Project.Status status;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
     public static class ProjectResponse {
         private Long id;
         private String name;
         private String description;
         private Long ownerId;
         private Project.Status status;
+        private long activeMemberCount;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
 
-        public static ProjectResponse from(Project project) {
+        public static ProjectResponse from(Project project, long activeMemberCount) {
             return ProjectResponse.builder()
                     .id(project.getId())
                     .name(project.getName())
                     .description(project.getDescription())
                     .ownerId(project.getOwnerId())
                     .status(project.getStatus())
+                    .activeMemberCount(activeMemberCount)
                     .createdAt(project.getCreatedAt())
                     .updatedAt(project.getUpdatedAt())
                     .build();

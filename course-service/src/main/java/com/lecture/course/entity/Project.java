@@ -52,4 +52,16 @@ public class Project {
         ARCHIVED,
         CLOSED
     }
+
+    public void update(String name, String description, Status status) {
+        if (name != null && !name.isBlank()) {
+            this.name = name;
+        }
+        if (description != null) {
+            this.description = description;
+        }
+        if (status != null) {
+            this.status = status;
+        }
+    }
 }

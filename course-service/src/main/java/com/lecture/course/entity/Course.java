@@ -99,6 +99,34 @@ public class Course {
         REVOKED
     }
 
+    public void updateDetails(
+            String title,
+            String description,
+            String provider,
+            String planName,
+            LocalDateTime expiresAt,
+            LocalDateTime renewalAt
+    ) {
+        if (title != null) {
+            this.title = title;
+        }
+        if (description != null) {
+            this.description = description;
+        }
+        if (provider != null) {
+            this.provider = provider;
+        }
+        if (planName != null) {
+            this.planName = planName;
+        }
+        if (expiresAt != null) {
+            this.expiresAt = expiresAt;
+        }
+        if (renewalAt != null) {
+            this.renewalAt = renewalAt;
+        }
+    }
+
     public void rotateSecret(String secretValue, LocalDateTime rotatedAt) {
         if (category != Category.API_KEY) {
             throw new IllegalStateException("API_KEY 유형만 Secret을 회전할 수 있습니다.");

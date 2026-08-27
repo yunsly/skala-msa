@@ -98,4 +98,11 @@ public class EnrollmentService {
                 .activeProjectIds(activeProjectIds)
                 .build();
     }
+
+    public long countActiveMembers(Long projectId) {
+        return enrollmentRepository.countByProjectIdAndStatus(
+                projectId,
+                Enrollment.Status.ACTIVE
+        );
+    }
 }
