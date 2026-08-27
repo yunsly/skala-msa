@@ -20,4 +20,6 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     );
 
     boolean existsByProjectIdAndTitle(Long projectId, String title);
+
+    boolean existsByProjectIdAndTitleAndIdNot(Long projectId, String title, Long id);
 }

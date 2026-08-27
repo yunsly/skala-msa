@@ -40,6 +40,28 @@ public class CourseDto {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
+    public static class UpdateRequest {
+        private String title;
+        private String description;
+        private String provider;
+        private String planName;
+        private LocalDateTime expiresAt;
+        private LocalDateTime renewalAt;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class RotateSecretRequest {
+        @NotBlank(message = "새 Secret 값은 필수입니다")
+        private String secretValue;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
     public static class CourseResponse {
         private Long id;
         private Long projectId;
@@ -49,6 +71,8 @@ public class CourseDto {
         private String provider;
         private String planName;
         private Long instructorId;
+        private Long managerId;
+        private long activeMemberCount;
         private LocalDateTime expiresAt;
         private LocalDateTime renewalAt;
         private LocalDateTime lastRotatedAt;
@@ -56,7 +80,7 @@ public class CourseDto {
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
 
-        public static CourseResponse from(Course course) {
+        public static CourseResponse from(Course course, long activeMemberCount) {
             return CourseResponse.builder()
                     .id(course.getId())
                     .projectId(course.getProjectId())
@@ -66,6 +90,52 @@ public class CourseDto {
                     .provider(course.getProvider())
                     .planName(course.getPlanName())
                     .instructorId(course.getInstructorId())
+                    .managerId(course.getInstructorId())
+                    .activeMemberCount(activeMemberCount)
+                    .expiresAt(course.getExpiresAt())
+                    .renewalAt(course.getRenewalAt())
+                    .lastRotatedAt(course.getLastRotatedAt())
+                    .status(course.getStatus())
+                    .createdAt(course.getCreatedAt())
+                    .updatedAt(course.getUpdatedAt())
+                    .build();
+        }
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class CourseDetailResponse {
+        private Long id;
+        private Long projectId;
+        private String title;
+        private String description;
+        private Course.Category category;
+        private String provider;
+        private String planName;
+        private Long managerId;
+        private long activeMemberCount;
+        private String secretValue;
+        private LocalDateTime expiresAt;
+        private LocalDateTime renewalAt;
+        private LocalDateTime lastRotatedAt;
+        private Course.Status status;
+        private LocalDateTime createdAt;
+        private LocalDateTime updatedAt;
+
+        public static CourseDetailResponse from(Course course, long activeMemberCount) {
+            return CourseDetailResponse.builder()
+                    .id(course.getId())
+                    .projectId(course.getProjectId())
+                    .title(course.getTitle())
+                    .description(course.getDescription())
+                    .category(course.getCategory())
+                    .provider(course.getProvider())
+                    .planName(course.getPlanName())
+                    .managerId(course.getInstructorId())
+                    .activeMemberCount(activeMemberCount)
+                    .secretValue(course.getMetadata())
                     .expiresAt(course.getExpiresAt())
                     .renewalAt(course.getRenewalAt())
                     .lastRotatedAt(course.getLastRotatedAt())

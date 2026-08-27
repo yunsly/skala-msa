@@ -173,7 +173,12 @@ services:
       - SPRING_DATASOURCE_PASSWORD=SqlDba-1
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI=http://auth-server:9000/oauth2/jwks
-      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://auth-server:9000
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://localhost:8080
+      - AUTH_SERVER_URL=http://auth-server:9000
+      - USER_SERVICE_URL=http://user-service:8081
+      - ENROLLMENT_SERVICE_URL=http://enrollment-service:8083
+      - SERVICE_OAUTH_CLIENT_ID=service-client
+      - SERVICE_OAUTH_CLIENT_SECRET=service-secret
       - CREDENTIAL_ENCRYPTION_KEY=${CREDENTIAL_ENCRYPTION_KEY}
     depends_on:
       mariadb:
@@ -200,6 +205,11 @@ services:
       - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI=http://auth-server:9000/oauth2/jwks
       - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://auth-server:9000
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - AUTH_SERVER_URL=http://auth-server:9000
+      - COURSE_SERVICE_URL=http://course-service:8082
+      - PAYMENT_SERVICE_URL=http://payment-service:8084
+      - SERVICE_OAUTH_CLIENT_ID=service-client
+      - SERVICE_OAUTH_CLIENT_SECRET=service-secret
     depends_on:
       mariadb:
         condition: service_healthy

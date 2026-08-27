@@ -59,4 +59,9 @@ public class EnrollmentController {
     ) {
         return ResponseEntity.ok(enrollmentService.getEnrollmentHistory(userId));
     }
+
+    @GetMapping("/internal/projects/{projectId}/active-count")
+    public ResponseEntity<Long> countActiveMembers(@PathVariable Long projectId) {
+        return ResponseEntity.ok(enrollmentService.countActiveMembers(projectId));
+    }
 }

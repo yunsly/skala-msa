@@ -61,10 +61,15 @@ eureka:
 
 # 서비스 간 통신 URL (Eureka lb:// 사용 대신 컨테이너 DNS 직접 호출)
 service:
+  auth-server:
+    url: ${AUTH_SERVER_URL:http://localhost:9000}
   course-service:
-    url: http://course-service:8082
+    url: ${COURSE_SERVICE_URL:http://localhost:8082}
   payment-service:
-    url: http://payment-service:8084
+    url: ${PAYMENT_SERVICE_URL:http://localhost:8084}
+  oauth:
+    client-id: ${SERVICE_OAUTH_CLIENT_ID:service-client}
+    client-secret: ${SERVICE_OAUTH_CLIENT_SECRET:service-secret}
 
 # Kafka 토픽명
 kafka:
