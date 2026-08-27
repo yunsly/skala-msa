@@ -8,6 +8,12 @@ export const courseApi = {
     return api.get('/api/courses/projects')
   },
 
+  // 신규 프로젝트 생성 (LEADER/ADMIN 전용). 화면 정의표에 별도 화면은 없지만
+  // API 계약에 있고 ProjectCatalogView의 "새 프로젝트" 모달에서 사용한다.
+  createProject(data) {
+    return api.post('/api/courses/projects', data)
+  },
+
   getCourses(params) {
     return api.get('/api/courses', { params })
   },
