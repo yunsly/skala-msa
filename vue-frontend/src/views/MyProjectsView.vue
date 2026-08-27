@@ -51,6 +51,20 @@
             </div>
           </div>
         </section>
+
+        <section v-if="cancelledItems.length" class="section">
+          <h2 class="section-title">회수됨 <span class="count mono">{{ cancelledItems.length }}</span></h2>
+          <div class="list">
+            <div v-for="item in cancelledItems" :key="item.projectId" class="row row-muted">
+              <div class="row-main">
+                <h3>{{ item.name }}</h3>
+                <p>{{ item.description || '설명이 없습니다.' }}</p>
+              </div>
+              <StatusBadge status="CANCELLED" />
+              <router-link :to="`/projects/${item.projectId}`" class="btn btn-ghost btn-sm">재신청</router-link>
+            </div>
+          </div>
+        </section>
       </template>
     </main>
   </div>
@@ -69,6 +83,10 @@ const items = ref([])
 
 const activeItems = computed(() => items.value.filter((i) => i.status === 'ACTIVE'))
 const pendingItems = computed(() => items.value.filter((i) => i.status === 'PENDING'))
+// CANCELLED(회수됨)도 별도 섹션으로 보여준다 — 예전엔 어디에도 안 걸려서, 회수된
+// 프로젝트만 있는 사용자는 아무 섹션도 안 뜨고 빈 상태 문구도 없이 화면이 통째로
+// 비어 보이는 문제가 있었다.
+const cancelledItems = computed(() => items.value.filter((i) => i.status === 'CANCELLED'))
 
 async function loadAll() {
   loading.value = true
@@ -162,6 +180,7 @@ onMounted(loadAll)
   border-radius: var(--radius-lg);
   padding: 16px 18px;
 }
+.row-muted { opacity: 0.7; }
 .row-main { flex: 1; min-width: 0; }
 .row-main h3 { font-size: 14px; font-weight: 600; color: var(--color-text-primary); margin-bottom: 3px; }
 .row-main p {
