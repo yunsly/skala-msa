@@ -11,6 +11,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 public class PaymentServiceClient {
 
     private final WebClient.Builder webClientBuilder;
+    private final ServiceTokenProvider tokenProvider;
 
     public PaymentResult requestApproval(
             Long enrollmentId,
@@ -22,6 +23,9 @@ public class PaymentServiceClient {
             return webClientBuilder.build()
                     .post()
                     .uri("http://payment-service:8084/api/payments/internal/request")
+                    .headers(headers -> headers.setBearerAuth(
+                            tokenProvider.getAccessToken()
+                    ))
                     .bodyValue(request)
                     .retrieve()
                     .bodyToMono(PaymentResult.class)
