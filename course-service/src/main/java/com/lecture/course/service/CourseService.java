@@ -10,6 +10,7 @@ import com.lecture.course.repository.CourseRepository;
 import com.lecture.course.repository.ProjectRepository;
 import com.lecture.course.security.AuthenticatedActor;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -138,6 +140,15 @@ public class CourseService {
                     actor.userId()
             );
             throw error;
+        }
+        try {
+            enrollmentServiceClient.markAccessed(actor.userId(), project.getId());
+        } catch (RuntimeException error) {
+            log.warn(
+                    "[CourseService] 최근 접근 시각 갱신 실패 - projectId: {}, userId: {}",
+                    project.getId(),
+                    actor.userId()
+            );
         }
         return CourseDto.CourseDetailResponse.from(course, activeMemberCount(project.getId()));
     }

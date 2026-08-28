@@ -82,4 +82,13 @@ public class EnrollmentController {
     public ResponseEntity<Long> countActiveMembers(@PathVariable Long projectId) {
         return ResponseEntity.ok(enrollmentService.countActiveMembers(projectId));
     }
+
+    @PatchMapping("/internal/{userId}/{projectId}/access")
+    public ResponseEntity<Void> markAccessed(
+            @PathVariable Long userId,
+            @PathVariable Long projectId
+    ) {
+        enrollmentService.markAccessed(userId, projectId);
+        return ResponseEntity.noContent().build();
+    }
 }
