@@ -177,6 +177,7 @@ services:
       - AUTH_SERVER_URL=http://auth-server:9000
       - USER_SERVICE_URL=http://user-service:8081
       - ENROLLMENT_SERVICE_URL=http://enrollment-service:8083
+      - PAYMENT_SERVICE_URL=http://payment-service:8084
       - SERVICE_OAUTH_CLIENT_ID=service-client
       - SERVICE_OAUTH_CLIENT_SECRET=service-secret
       - CREDENTIAL_ENCRYPTION_KEY=${CREDENTIAL_ENCRYPTION_KEY}
@@ -262,6 +263,7 @@ services:
       - JWK_SET_URI=http://auth-server:9000/oauth2/jwks
       - ENROLLMENT_SERVICE_URL=http://enrollment-service:8083
       - COURSE_SERVICE_URL=http://course-service:8082
+      - PAYMENT_SERVICE_URL=http://payment-service:8084
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
     depends_on:
       eureka-server:
@@ -273,6 +275,8 @@ services:
       enrollment-service:
         condition: service_started
       course-service:
+        condition: service_started
+      payment-service:
         condition: service_started
     networks:
       - lecture-net

@@ -7,7 +7,13 @@ import { courseApi } from './course.js'
 // 백엔드가 evidence/recommendedAction을 안 내려줄 수 있어 방어적으로 클라이언트에서
 // 근거·우선순위 조치 문구를 만든다. 백엔드 값이 있으면 그걸 우선한다.
 function buildEvidence(a) {
-  if (a.evidence) return a.evidence
+  if (Array.isArray(a.evidence) && a.evidence.length > 0) {
+    return a.evidence
+      .map((item) => typeof item === 'string' ? item : item.message)
+      .filter(Boolean)
+      .join(' · ')
+  }
+  if (typeof a.evidence === 'string' && a.evidence) return a.evidence
   if (a.isExpiringSoon && a.expiresAt) return `만료 임박 (${a.expiresAt.slice(0, 10)})`
   if (a.needsRotation && a.lastRotatedAt) return `회전 주기 경과 (마지막 회전 ${a.lastRotatedAt.slice(0, 10)})`
   if (a.needsRotation) return '회전 주기 경과'
@@ -16,6 +22,7 @@ function buildEvidence(a) {
 }
 
 function buildAction(a) {
+  if (Array.isArray(a.recommendedAction)) return a.recommendedAction.join(' · ')
   if (a.recommendedAction) return a.recommendedAction
   if (a.riskLevel === 'CRITICAL') return 'Vault 동적 시크릿으로 즉시 마이그레이션 권장'
   if (a.needsRotation) return '지금 회전(rotate)하고 소비자에게 통지'
@@ -26,7 +33,7 @@ function buildAction(a) {
 
 export const recommendApi = {
   analyzeProject(projectId) {
-    return api.post(`/api/recommend/projects/${projectId}/analyze`)
+    return api.get(`/api/recommend/projects/${projectId}/risks`)
   },
 
   // 전사 통합 위험도 리포트.
@@ -56,31 +63,56 @@ export const recommendApi = {
         try {
           const res = await this.analyzeProject(project.id)
           const payload = res.data?.data ?? res.data
-          const assets = Array.isArray(payload?.riskyAssets)
-            ? payload.riskyAssets
+          const assets = Array.isArray(payload?.risks)
+            ? payload.risks
+            : Array.isArray(payload?.riskyAssets)
+              ? payload.riskyAssets
             : Array.isArray(payload?.assets)
               ? payload.assets
               : Array.isArray(payload)
                 ? payload
                 : []
 
+          const recommendations = new Map(
+            (Array.isArray(payload?.recommendations) ? payload.recommendations : [])
+              .map((item) => [String(item.credentialId), item])
+          )
+
           return assets.map((a) => {
+            const evidenceRules = new Set(
+              (Array.isArray(a.evidence) ? a.evidence : [])
+                .map((item) => item?.rule)
+                .filter(Boolean)
+            )
+            const recommendation = recommendations.get(String(a.credentialId ?? a.id ?? a.assetId))
             const normalized = {
-              id: a.id ?? a.assetId,
+              id: a.credentialId ?? a.id ?? a.assetId,
               title: a.title ?? a.name,
-              category: a.category,
+              category: a.type ?? a.category,
               riskScore: a.riskScore ?? a.score ?? 0,
               riskLevel: a.riskLevel ?? a.grade ?? a.level,
               expiresAt: a.expiresAt ?? a.expiry ?? null,
               lastRotatedAt: a.lastRotatedAt ?? a.lastRotationAt ?? null,
-              needsRotation: a.needsRotation ?? false,
-              isExpiringSoon: a.isExpiringSoon ?? false,
-              isRenewalDue: a.isRenewalDue ?? a.isSubscriptionRenewalDue ?? false,
+              needsRotation: a.needsRotation ?? (
+                evidenceRules.has('API_KEY_NOT_ROTATED_OVER_90_DAYS') ||
+                evidenceRules.has('API_KEY_NOT_ROTATED_OVER_180_DAYS')
+              ),
+              isExpiringSoon: a.isExpiringSoon ?? (
+                evidenceRules.has('API_KEY_EXPIRING_WITHIN_7_DAYS') ||
+                evidenceRules.has('API_KEY_EXPIRING_WITHIN_30_DAYS')
+              ),
+              isRenewalDue: a.isRenewalDue ?? a.isSubscriptionRenewalDue ?? (
+                evidenceRules.has('SUBSCRIPTION_RENEWING_WITHIN_7_DAYS') ||
+                evidenceRules.has('SUBSCRIPTION_RENEWING_WITHIN_30_DAYS')
+              ),
               projectId: project.id,
               projectName: project.name
             }
             normalized.evidence = buildEvidence({ ...normalized, evidence: a.evidence })
-            normalized.recommendedAction = buildAction({ ...normalized, recommendedAction: a.recommendedAction })
+            normalized.recommendedAction = buildAction({
+              ...normalized,
+              recommendedAction: recommendation?.actions ?? a.recommendedAction
+            })
             return normalized
           })
         } catch (e) {

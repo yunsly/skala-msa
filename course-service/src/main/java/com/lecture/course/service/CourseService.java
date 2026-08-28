@@ -1,6 +1,7 @@
 package com.lecture.course.service;
 
 import com.lecture.course.client.EnrollmentServiceClient;
+import com.lecture.course.client.CredentialAuditClient;
 import com.lecture.course.dto.CourseDto;
 import com.lecture.course.dto.ProjectDto;
 import com.lecture.course.entity.Course;
@@ -30,6 +31,7 @@ public class CourseService {
     private final CourseRepository courseRepository;
     private final ProjectRepository projectRepository;
     private final EnrollmentServiceClient enrollmentServiceClient;
+    private final CredentialAuditClient credentialAuditClient;
 
     @Transactional
     public ProjectDto.ProjectResponse createProject(
@@ -127,7 +129,16 @@ public class CourseService {
     public CourseDto.CourseDetailResponse getCourse(Long id, AuthenticatedActor actor) {
         Course course = findCourseById(id);
         Project project = findProjectById(course.getProjectId());
-        requireProjectAccess(actor, project, activeMemberships(actor));
+        try {
+            requireProjectAccess(actor, project, activeMemberships(actor));
+        } catch (AccessDeniedException error) {
+            credentialAuditClient.recordCredentialViewDenied(
+                    project.getId(),
+                    course.getId(),
+                    actor.userId()
+            );
+            throw error;
+        }
         return CourseDto.CourseDetailResponse.from(course, activeMemberCount(project.getId()));
     }
 
