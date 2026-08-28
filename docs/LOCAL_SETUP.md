@@ -105,6 +105,39 @@ npm run dev            # http://localhost:3000
 
 ---
 
+## 7. 트러블슈팅
+
+### 프로젝트 상세에서 "자산 목록을 불러오지 못했습니다"
+
+- **증상**: 카탈로그(`/projects`)는 뜨는데 특정 프로젝트로 들어가면 자산 목록만 실패.
+  자산 상세 · "Secret 표시" 도 500.
+- **course-service 로그**: `JpaSystemException: Error attempting to apply AttributeConverter`
+  (원인 예외는 `GlobalExceptionHandler` 가 삼켜서 응답엔 "서버 오류가 발생했습니다"만 나온다 —
+  `docker logs lecture-course` 를 봐야 보인다).
+- **원인**: `courses.metadata` 는 `CREDENTIAL_ENCRYPTION_KEY` 로 암호화된 Secret 이고,
+  Hibernate 가 `courses` 행을 읽을 때마다 `SecretMetadataConverter` 가 복호화한다.
+  루트 `.env` 의 키가 `.env.example`(= 데모 시드가 암호화에 쓴 고정 키)과 다르면
+  AES-GCM 인증 실패 → 자산이 걸린 모든 조회가 500.
+  (`cp .env.example .env` 대신 `openssl rand` 로 새 키를 만들면 이렇게 된다.)
+- **해결**:
+  ```bash
+  # 루트 .env 의 CREDENTIAL_ENCRYPTION_KEY 를 .env.example 값으로 되돌린다
+  docker compose up -d course-service   # env 재주입 (컨테이너 재생성)
+  ```
+  DB 에 사용자가 직접 만든 자산이 있었다면 그건 옛 키로 암호화됐으니, 볼륨 초기화(3번 옵션 A)로
+  데모 시드만 남기는 게 깔끔하다.
+
+### 로그인 직후 `/projects` 에서 튕기거나 `/api/users/me` 500
+
+- `docker-compose.override.yml` 이 병합됐는지 (auth-server `auth_compat_db`, user-service JWT
+  issuer) + `user-service` / `eureka-server` 이미지를 소스로 재빌드했는지 확인. (0·4번)
+
+### 로그인 버튼이 Whitelabel 400 / `client_id=undefined`
+
+- `vue-frontend/.env` 가 없다. `cp vue-frontend/.env.example vue-frontend/.env` 후 dev 서버 재시작. (1번)
+
+---
+
 ## 요약 (신규 볼륨 기준)
 
 ```bash
