@@ -11,7 +11,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-JVM_SERVICES=(course-service enrollment-service payment-service)   # Spring Boot
+# docker-compose.yml 이 image: 로 참조하는 Spring 서비스 전부.
+# (eureka-server / user-service 는 강사 배포 프리빌트가 구 스키마라 반드시 소스로 재빌드해야 한다 —
+#  특히 user-service 는 User.Role enum 이 ADMIN/LEADER/MEMBER 로 바뀌어 구 이미지로는 /api/users/me 가 500)
+JVM_SERVICES=(eureka-server user-service course-service enrollment-service payment-service)   # Spring Boot
 PY_SERVICES=(recommend-service)                                    # FastAPI (자체 Dockerfile)
 
 targets=("$@")
