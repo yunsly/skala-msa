@@ -19,6 +19,8 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
             Course.Status status
     );
 
+    long countByProjectIdAndStatus(Long projectId, Course.Status status);
+
     boolean existsByProjectIdAndTitle(Long projectId, String title);
 
     boolean existsByProjectIdAndTitleAndIdNot(Long projectId, String title, Long id);

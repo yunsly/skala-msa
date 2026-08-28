@@ -11,10 +11,8 @@ export const paymentApi = {
     return api.post(`/api/payments/${id}/approve`, { decisionReason })
   },
 
-  // 계약 문서엔 revoke의 body가 명시되어 있지 않지만, 이슈 #17 요구사항이
-  // "승인 또는 거절 사유를 입력해 결정을 처리"라고 명시해 approve와 동일하게
-  // decisionReason을 보낸다 — 백엔드가 이 필드를 안 받으면 무시될 뿐이라 안전하다.
-  revoke(id, decisionReason) {
-    return api.post(`/api/payments/${id}/revoke`, { decisionReason })
+  // PENDING 신청 거절. (승인 후 회수(revoke)는 별도 기능으로, 현재 화면에는 없다.)
+  reject(id, decisionReason) {
+    return api.post(`/api/payments/${id}/reject`, { decisionReason })
   }
 }

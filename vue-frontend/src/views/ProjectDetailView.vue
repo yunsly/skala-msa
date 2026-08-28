@@ -19,8 +19,8 @@
             <h1>{{ project.name }}</h1>
             <p class="desc">{{ project.description || '설명이 없습니다.' }}</p>
             <div class="meta-row">
-              <span>리더 · {{ project.leaderName || '-' }}</span>
-              <span>멤버 {{ project.enrollmentCount ?? project.memberCount ?? 0 }}명</span>
+              <span>리더 · {{ project.leaderName || (project.ownerId != null ? `#${project.ownerId}` : '-') }}</span>
+              <span>멤버 {{ project.activeMemberCount ?? project.enrollmentCount ?? project.memberCount ?? 0 }}명</span>
               <span>자산 {{ project.assetCount ?? assets.length }}개</span>
             </div>
           </div>

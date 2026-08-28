@@ -69,13 +69,34 @@ export const useAuthStore = defineStore('auth', () => {
     sessionStorage.removeItem('user')
 
     if (redirect) {
-      // 프론트 토큰만 지우면 auth-server 의 SSO 세션(JSESSIONID)이 남아, 다시 로그인
-      // 버튼을 눌렀을 때 아이디/비밀번호 입력 없이 곧바로 재로그인된다.
-      // auth-server 세션까지 끊으려면 top-level 네비게이션으로 /logout 을 호출해야 한다
-      // (SameSite=Lax 쿠키라 fetch/iframe 으로는 세션이 안 끊긴다).
-      // 로그아웃 후 auth-server 기본 로그인 페이지(/login?logout)에 착지한다.
-      // 재로그인은 이 페이지가 아니라 SPA(홈)에서 시도해야 정상 흐름을 탄다
-      // — logoutSuccessUrl 을 SPA 로 돌리려면 프리빌트 auth-server 이미지 수정 필요.
+      logoutAuthServerSession()
+    }
+  }
+
+  // auth-server 의 SSO 세션(JSESSIONID)까지 끊는다.
+  // - 프론트 토큰만 지우면 세션이 남아 다음 로그인에서 자격증명을 안 묻는다.
+  // - auth-server 의 /logout 은 항상 자기 로그인 페이지(/login?logout)로 리다이렉트되고
+  //   (prebuilt 이미지라 logoutSuccessUrl 변경 불가), 그 페이지에서 로그인하면
+  //   게이트웨이 루트(/)로 튕겨 401 이 뜬다.
+  // - 그래서 /logout 은 잠깐 뜨는 작은 창에서 처리해 세션만 끊고, 본 창은 SPA 로그인으로 보낸다.
+  //   (SameSite=Lax 쿠키라 iframe/fetch 로는 세션이 안 끊겨 top-level 창 이동이 필요하다.)
+  function logoutAuthServerSession() {
+    const backToLogin = () => { window.location.href = '/login' }
+    let popup = null
+    try {
+      popup = window.open(`${AUTH_SERVER_URL}/logout`, 'keynexus-logout', 'width=420,height=320')
+    } catch (e) {
+      popup = null
+    }
+
+    if (popup) {
+      setTimeout(() => {
+        try { popup.close() } catch (e) { /* noop */ }
+        backToLogin()
+      }, 1200)
+    } else {
+      // 팝업이 차단된 경우: 전체 페이지로 /logout (auth 로그인 페이지에 착지 —
+      // 사용자는 다시 SPA 로 돌아와 로그인해야 한다).
       window.location.href = `${AUTH_SERVER_URL}/logout`
     }
   }

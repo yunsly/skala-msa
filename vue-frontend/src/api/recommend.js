@@ -57,11 +57,13 @@ export const recommendApi = {
         : []
 
     let failedProjectCount = 0
+    let inScopeProjectCount = 0 // 내가 접근 가능한(=리포트 대상) 프로젝트 수
 
     const perProject = await Promise.all(
       projects.map(async (project) => {
         try {
           const res = await this.analyzeProject(project.id)
+          inScopeProjectCount += 1
           const payload = res.data?.data ?? res.data
           const assets = Array.isArray(payload?.risks)
             ? payload.risks
@@ -116,6 +118,10 @@ export const recommendApi = {
             return normalized
           })
         } catch (e) {
+          // 403/404 = 이 사용자가 접근 권한이 없는(=멤버가 아닌) 프로젝트 → 리포트 대상 아님, 조용히 스킵.
+          const status = e.response?.status
+          if (status === 403 || status === 404) return []
+          inScopeProjectCount += 1
           console.error(`[recommendApi] 프로젝트 #${project.id} 위험도 분석 실패:`, e)
           failedProjectCount += 1
           return []
@@ -146,7 +152,7 @@ export const recommendApi = {
 
     return {
       analyzedAt: new Date().toISOString(),
-      totalProjects: projects.length,
+      totalProjects: inScopeProjectCount,
       failedProjectCount,
       criticalAssets: allAssets.filter((a) => a.riskLevel === 'CRITICAL'),
       highAssets: allAssets.filter((a) => a.riskLevel === 'HIGH'),

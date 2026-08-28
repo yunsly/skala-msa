@@ -28,6 +28,46 @@ public class PaymentController {
     }
 
     /**
+     * GET /api/payments/pending - 내가 리더인 프로젝트로 들어온 승인 대기 목록
+     */
+    @GetMapping("/pending")
+    public ResponseEntity<PaymentDto.ApiResponse<List<PaymentDto.PendingApprovalResponse>>> getPending(
+            @RequestHeader("X-User-Id") Long approverId,
+            @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        return ResponseEntity.ok(PaymentDto.ApiResponse.success(
+                paymentService.getPendingApprovals(approverId, authorization)));
+    }
+
+    /**
+     * POST /api/payments/{id}/approve - 접근 신청 승인
+     */
+    @PostMapping("/{id}/approve")
+    public ResponseEntity<PaymentDto.ApiResponse<PaymentDto.PaymentResponse>> approve(
+            @PathVariable Long id,
+            @RequestHeader("X-User-Id") Long approverId,
+            @RequestBody(required = false) PaymentDto.DecisionRequest request
+    ) {
+        String reason = request == null ? null : request.getDecisionReason();
+        return ResponseEntity.ok(PaymentDto.ApiResponse.success(
+                paymentService.approve(id, approverId, reason)));
+    }
+
+    /**
+     * POST /api/payments/{id}/reject - 접근 신청 거절
+     */
+    @PostMapping("/{id}/reject")
+    public ResponseEntity<PaymentDto.ApiResponse<PaymentDto.PaymentResponse>> reject(
+            @PathVariable Long id,
+            @RequestHeader("X-User-Id") Long approverId,
+            @RequestBody(required = false) PaymentDto.DecisionRequest request
+    ) {
+        String reason = request == null ? null : request.getDecisionReason();
+        return ResponseEntity.ok(PaymentDto.ApiResponse.success(
+                paymentService.reject(id, approverId, reason)));
+    }
+
+    /**
      * GET /api/payments/{id} - 프로젝트 승인 티켓 단건 조회
      */
     @GetMapping("/{id}")

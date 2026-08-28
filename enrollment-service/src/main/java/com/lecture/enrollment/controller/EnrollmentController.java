@@ -64,6 +64,13 @@ public class EnrollmentController {
         );
     }
 
+    @GetMapping("/internal/{enrollmentId}")
+    public ResponseEntity<EnrollmentDto.EnrollmentResponse> getEnrollmentInternal(
+            @PathVariable Long enrollmentId
+    ) {
+        return ResponseEntity.ok(enrollmentService.getEnrollment(enrollmentId));
+    }
+
     @GetMapping("/internal/history/{userId}")
     public ResponseEntity<EnrollmentDto.EnrollmentHistoryResponse> getEnrollmentHistory(
             @PathVariable Long userId

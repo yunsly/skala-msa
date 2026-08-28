@@ -51,6 +51,40 @@ public class EnrollmentService {
         return EnrollmentDto.EnrollmentResponse.from(enrollment);
     }
 
+    public EnrollmentDto.EnrollmentResponse getEnrollment(Long enrollmentId) {
+        Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "접근 신청을 찾을 수 없습니다: " + enrollmentId
+                ));
+        return EnrollmentDto.EnrollmentResponse.from(enrollment);
+    }
+
+    /**
+     * payment.rejected 이벤트 수신 시 접근 신청을 CANCELLED 로 되돌린다.
+     * (재신청은 CANCELLED 상태에서만 가능하므로 거절 = 취소로 처리한다.)
+     */
+    @Transactional
+    public void cancelEnrollment(Long enrollmentId, Long userId, Long projectId) {
+        Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "접근 신청을 찾을 수 없습니다: " + enrollmentId
+                ));
+
+        if (!enrollment.getUserId().equals(userId)
+                || !enrollment.getProjectId().equals(projectId)) {
+            throw new IllegalArgumentException("거절 이벤트와 접근 신청 정보가 일치하지 않습니다.");
+        }
+        if (enrollment.getStatus() == Enrollment.Status.CANCELLED) {
+            return;
+        }
+        if (enrollment.getStatus() != Enrollment.Status.PENDING) {
+            throw new IllegalStateException("PENDING 접근 신청만 거절할 수 있습니다.");
+        }
+
+        enrollment.cancel();
+        log.info("[EnrollmentService] 접근 신청 거절 처리 - enrollmentId: {}", enrollmentId);
+    }
+
     @Transactional
     public void activateEnrollment(Long enrollmentId, Long userId, Long projectId) {
         Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
@@ -103,10 +137,16 @@ public class EnrollmentService {
                 .map(EnrollmentDto.EnrollmentResponse::from)
                 .toList();
 
+        List<EnrollmentDto.EnrollmentResponse> cancelledProjects = enrollments.stream()
+                .filter(e -> e.getStatus() == Enrollment.Status.CANCELLED)
+                .map(EnrollmentDto.EnrollmentResponse::from)
+                .toList();
+
         return EnrollmentDto.MyProjectsResponse.builder()
                 .userId(userId)
                 .activeProjects(activeProjects)
                 .pendingProjects(pendingProjects)
+                .cancelledProjects(cancelledProjects)
                 .build();
     }
 

@@ -1,0 +1,12 @@
+# 호스트에서 미리 빌드한 Spring Boot jar 만 담는 경량 실행 이미지.
+# 각 서비스의 build/libs/*-SNAPSHOT.jar 를 빌드 컨텍스트로 전달해서 사용한다.
+#
+#   ./gradlew -p course-service bootJar -x test
+#   docker build -f docker/Dockerfile.jvm-runtime -t msa-lecture-course-service:latest ./course-service
+#
+# 서비스 Dockerfile 처럼 컨테이너 안에서 Gradle 을 돌리지 않으므로
+# Maven Central 레이트리밋(HTTP 429)에 영향받지 않는다. scripts/build-images.sh 참고.
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+COPY build/libs/*-SNAPSHOT.jar app.jar
+ENTRYPOINT ["java", "-jar", "app.jar"]

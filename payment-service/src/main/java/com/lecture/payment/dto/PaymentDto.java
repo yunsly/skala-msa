@@ -59,6 +59,29 @@ public class PaymentDto {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
+    public static class DecisionRequest {
+        private String decisionReason;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class PendingApprovalResponse {
+        private Long id;
+        private Long enrollmentId;
+        private Long projectId;
+        private String projectName;
+        private Long userId;
+        private String userName;
+        private String reason;
+        private LocalDateTime createdAt;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
     public static class InternalPaymentResult {
         private Long paymentId;
         private String status;

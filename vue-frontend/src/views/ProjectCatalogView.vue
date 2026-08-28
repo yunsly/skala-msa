@@ -48,9 +48,9 @@
             </div>
             <p class="card-desc">{{ p.description || '설명이 없습니다.' }}</p>
             <div class="card-meta">
-              <span>리더 · {{ p.leaderName || '-' }}</span>
+              <span>리더 · {{ p.leaderName || (p.ownerId != null ? `#${p.ownerId}` : '-') }}</span>
               <span>자산 {{ p.assetCount ?? 0 }}개</span>
-              <span>멤버 {{ p.enrollmentCount ?? p.memberCount ?? 0 }}명</span>
+              <span>멤버 {{ p.activeMemberCount ?? p.enrollmentCount ?? p.memberCount ?? 0 }}명</span>
             </div>
           </router-link>
 

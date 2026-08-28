@@ -79,6 +79,9 @@ public class EnrollmentDto {
 
         @Schema(description = "[신청 대기 프로젝트] 리더 승인을 기다리는 PENDING 상태 신청 목록")
         private List<EnrollmentResponse> pendingProjects;
+
+        @Schema(description = "[회수된 프로젝트] 거절되었거나 접근이 회수된 CANCELLED 상태 신청 목록 (재신청 가능)")
+        private List<EnrollmentResponse> cancelledProjects;
     }
 
     @Getter
