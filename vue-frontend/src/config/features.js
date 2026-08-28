@@ -7,5 +7,5 @@
 // 플래그를 true 로 바꾸면 각 화면이 실제 API 를 호출하는 원래 동작으로 복귀한다.
 export const FEATURES = {
   approvalQueue: false,
-  riskDashboard: false
+  riskDashboard: true
 }
