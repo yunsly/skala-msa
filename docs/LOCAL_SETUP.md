@@ -6,23 +6,28 @@
 
 ## 0. 선행: infra 브랜치
 
-이 브랜치는 `infra/feat-user-auth-compatibility` 를 전제로 한다.
-- `auth_compat_db` VIEW (auth-server 가 레거시 Role 로 사용자를 읽는 호환 계층)
-- user-service 인증 계층 (`/api/users/{id}` ADMIN 제한 등)
+이 브랜치는 `infra/feat-user-auth-compatibility` 를 전제로 한다 (배포된 auth-server / user-service
+이미지가 그 버전). develop 에 아직 안 들어간 부분은 이 PR 이 다음으로 보충한다:
 
-편의를 위해 **VIEW 생성 스크립트(`init-db/02_auth_role_compatibility.sql`)만** 이 브랜치에 포함했다.
-user-service 소스 정합은 infra PR 이 develop 에 병합되면 해소된다.
-(그때 `docker-compose.override.yml` 은 삭제해도 된다.)
+- `init-db/02_auth_role_compatibility.sql` — `auth_compat_db` VIEW (auth-server 가 레거시
+  Role 로 사용자를 읽는 호환 계층)
+- `docker-compose.override.yml` — auth-server 를 `auth_compat_db` 로, **user-service 의
+  JWT issuer 를 `http://localhost:8080` 로** 지정 (안 맞추면 `/api/users/me` 500 → 로그인 직후 튕김)
+
+user-service **소스** 정합(`AuthenticatedUserResolver` 등)은 infra PR 이 develop 에 병합돼야
+완결된다. 그때 `docker-compose.override.yml` 은 삭제한다.
 
 ---
 
-## 1. `.env` 생성
+## 1. `.env` 생성 (2개 — 둘 다 .gitignore 대상이라 클론에 없음)
 
 ```bash
-cp .env.example .env
+cp .env.example .env                       # 루트: CREDENTIAL_ENCRYPTION_KEY
+cp vue-frontend/.env.example vue-frontend/.env   # 프론트: OAuth 클라이언트/redirect
 ```
-`CREDENTIAL_ENCRYPTION_KEY` 는 데모 고정 키가 들어 있다. **그대로 두면** 데모 데이터의
-"Secret 표시" 가 복호화된다. (실제 배포 시에는 `openssl rand -base64 32` 로 교체)
+- 루트 `.env` 의 `CREDENTIAL_ENCRYPTION_KEY` 는 데모 고정 키다. **그대로 두면** 데모 데이터의
+  "Secret 표시" 가 복호화된다. (실제 배포 시에는 `openssl rand -base64 32` 로 교체)
+- `vue-frontend/.env` 가 없으면 로그인 시 OAuth `client_id` 가 `undefined` 로 나가 토큰 교환이 실패한다.
 
 ---
 

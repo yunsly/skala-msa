@@ -1,14 +1,24 @@
 # Local dev override — `docker compose` 가 자동으로 병합한다.
 #
-# auth-server 이미지(msa-lecture/auth-server:1.0)는 레거시 Role(STUDENT/INSTRUCTOR)
-# 스키마를 기대한다. lecture_db.users 는 ADMIN/LEADER/MEMBER 로 전환됐으므로 auth-server 는
-# 레거시 값을 그대로 노출하는 auth_compat_db.users VIEW 를 바라봐야 한다.
-# (VIEW 는 init-db/02_auth_role_compatibility.sql 이 생성한다.)
+# infra/feat-user-auth-compatibility 브랜치의 런타임 설정 중, develop 에 아직 안 들어간
+# docker-compose 변경분을 여기서 보충한다. (그 PR 이 develop 에 병합되면 이 파일은 삭제)
 #
-# ※ 이 override 는 infra/feat-user-auth-compatibility PR 이 develop 에 정식 병합되면
-#    불필요해진다(그 PR 이 docker-compose.yml 본문에서 동일하게 지정). 그때 삭제할 것.
+# 1) auth-server
+#    프리빌트 이미지(msa-lecture/auth-server:1.0)는 레거시 Role(STUDENT/INSTRUCTOR)
+#    스키마를 기대한다. lecture_db.users 는 ADMIN/LEADER/MEMBER 로 전환됐으므로 auth-server 는
+#    레거시 값을 그대로 노출하는 auth_compat_db.users VIEW 를 바라봐야 한다.
+#    (VIEW 는 init-db/02_auth_role_compatibility.sql 이 생성한다.)
+#
+# 2) user-service
+#    infra 브랜치에서 user-service 가 JWT 리소스 서버로 바뀌었고(이미지에 반영됨),
+#    발급 토큰의 iss 클레임은 http://localhost:8080 이다. develop 의 compose 는 아직
+#    issuer 를 http://auth-server:9000 으로 두고 있어 토큰 검증이 실패한다
+#    (→ GET /api/users/me 500 → 로그인 직후 튕김). issuer 를 맞춰준다.
 services:
   auth-server:
     environment:
       - SPRING_DATASOURCE_URL=jdbc:mariadb://lecturedb:3306/auth_compat_db
       - SPRING_JPA_HIBERNATE_DDL_AUTO=none
+  user-service:
+    environment:
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://localhost:8080
