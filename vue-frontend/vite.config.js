@@ -36,6 +36,12 @@ export default defineConfig({
         bypass(req) {
           if (req.method === 'GET') return '/index.html'
         }
+      },
+      // 로그아웃: SSO 세션(JSESSIONID) 종료. same-origin 이라 세션 쿠키가 실린다.
+      '/logout': {
+        target: 'http://localhost:8080',
+        changeOrigin: false,
+        secure: false
       }
     }
   }

@@ -2,8 +2,6 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authApi } from '@/api/auth.js'
 
-const AUTH_SERVER_URL = import.meta.env.VITE_AUTH_SERVER_URL || 'http://localhost:8080'
-
 // 실제 운영 중인 백엔드(auth-server OAuth2 + user-service)에 맞춘 인증 스토어.
 // 직접 로그인(POST /api/users/login)은 여전히 없다 — user-service는
 // OAuth2 Resource Server라 로그인은 auth-server의 Authorization Code Flow로
@@ -75,30 +73,18 @@ export const useAuthStore = defineStore('auth', () => {
 
   // auth-server 의 SSO 세션(JSESSIONID)까지 끊는다.
   // - 프론트 토큰만 지우면 세션이 남아 다음 로그인에서 자격증명을 안 묻는다.
-  // - auth-server 의 /logout 은 항상 자기 로그인 페이지(/login?logout)로 리다이렉트되고
-  //   (prebuilt 이미지라 logoutSuccessUrl 변경 불가), 그 페이지에서 로그인하면
-  //   게이트웨이 루트(/)로 튕겨 401 이 뜬다.
-  // - 그래서 /logout 은 잠깐 뜨는 작은 창에서 처리해 세션만 끊고, 본 창은 SPA 로그인으로 보낸다.
-  //   (SameSite=Lax 쿠키라 iframe/fetch 로는 세션이 안 끊겨 top-level 창 이동이 필요하다.)
-  function logoutAuthServerSession() {
-    const backToLogin = () => { window.location.href = '/login' }
-    let popup = null
+  // - /logout 은 vite(dev)/nginx(prod)가 same-origin 으로 프록시하므로 세션 쿠키가
+  //   실린다. auth-server 는 302 로 자기 /login?logout 페이지로 보내지만
+  //   redirect:'manual' 로 따라가지 않는다 → 그 페이지가 화면에 뜨지 않는다.
+  // - 이 prebuilt auth-server 는 GET /logout 만 세션을 무효화한다(POST 는 안 먹음).
+  async function logoutAuthServerSession() {
     try {
-      popup = window.open(`${AUTH_SERVER_URL}/logout`, 'keynexus-logout', 'width=420,height=320')
+      await fetch('/logout', { credentials: 'include', redirect: 'manual' })
     } catch (e) {
-      popup = null
+      // best-effort: 세션 종료에 실패해도 프론트 토큰은 이미 지워졌다.
+      console.warn('[AuthStore] auth-server 세션 종료 실패:', e)
     }
-
-    if (popup) {
-      setTimeout(() => {
-        try { popup.close() } catch (e) { /* noop */ }
-        backToLogin()
-      }, 1200)
-    } else {
-      // 팝업이 차단된 경우: 전체 페이지로 /logout (auth 로그인 페이지에 착지 —
-      // 사용자는 다시 SPA 로 돌아와 로그인해야 한다).
-      window.location.href = `${AUTH_SERVER_URL}/logout`
-    }
+    window.location.href = '/login'
   }
 
   // OAuth2 Authorization Code Flow.
