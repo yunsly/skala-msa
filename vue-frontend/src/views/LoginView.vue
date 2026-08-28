@@ -24,18 +24,34 @@
           <!-- 로그인 -->
           <div v-if="!showRegister" class="section">
             <h1>로그인</h1>
-            <p class="sub">사내 SSO(OAuth2) 계정으로 로그인합니다.</p>
-            <button class="btn btn-primary btn-full" @click="handleOAuth">로그인</button>
+            <p class="sub">사내 계정으로 로그인합니다.</p>
+            <form class="form" @submit.prevent="handleLogin">
+              <div class="form-group">
+                <label class="form-label" for="email">이메일</label>
+                <input id="email" v-model.trim="loginForm.email" type="email" class="form-input" placeholder="name@company.com" autocomplete="username" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="password">비밀번호</label>
+                <input id="password" v-model="loginForm.password" type="password" class="form-input" placeholder="비밀번호" autocomplete="current-password" required />
+              </div>
+
+              <div v-if="error" class="error-msg">{{ error }}</div>
+
+              <button type="submit" class="btn btn-primary btn-full" :disabled="loading">
+                <span v-if="loading">로그인 중...</span>
+                <span v-else>로그인</span>
+              </button>
+            </form>
             <div class="switch-link">
               계정이 없으신가요?
-              <button type="button" class="text-btn" @click="showRegister = true">회원가입</button>
+              <button type="button" class="text-btn" @click="switchTo(true)">회원가입</button>
             </div>
           </div>
 
           <!-- 회원가입 -->
           <div v-else class="section">
             <h1>회원가입</h1>
-            <p class="sub">계정 생성 후 로그인 버튼으로 접속하세요.</p>
+            <p class="sub">계정 생성 후 로그인 탭에서 접속하세요.</p>
             <form class="form" @submit.prevent="handleRegister">
               <div class="form-group">
                 <label class="form-label" for="name">이름</label>
@@ -67,7 +83,7 @@
             </form>
             <div class="switch-link">
               이미 계정이 있으신가요?
-              <button type="button" class="text-btn" @click="showRegister = false">로그인</button>
+              <button type="button" class="text-btn" @click="switchTo(false)">로그인</button>
             </div>
           </div>
         </div>
@@ -77,10 +93,13 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/store/auth.js'
 import { authApi } from '@/api/auth.js'
 
+const route = useRoute()
+const router = useRouter()
 const auth = useAuthStore()
 
 const showRegister = ref(false)
@@ -88,6 +107,7 @@ const loading = ref(false)
 const error = ref('')
 const success = ref('')
 
+const loginForm = ref({ email: '', password: '' })
 const registerForm = ref({ name: '', email: '', password: '', role: 'STUDENT' })
 
 const features = [
@@ -96,8 +116,65 @@ const features = [
   '규칙 기반 위험도로 선제 대응'
 ]
 
-function handleOAuth() {
-  auth.redirectToLogin()
+// auth-server 는 폼 로그인 실패 시 /login?error 로 되돌려 보낸다.
+onMounted(() => {
+  if (route.query.error !== undefined) {
+    error.value = '이메일 또는 비밀번호가 올바르지 않습니다.'
+  }
+})
+
+function switchTo(register) {
+  showRegister.value = register
+  error.value = ''
+  success.value = ''
+}
+
+function oauthParams() {
+  return new URLSearchParams({
+    response_type: 'code',
+    client_id: import.meta.env.VITE_CLIENT_ID,
+    redirect_uri: import.meta.env.VITE_REDIRECT_URI,
+    scope: 'openid profile read write'
+  })
+}
+
+// auth-server(prebuilt)의 기본 로그인 페이지를 쓰지 않고 이 폼으로 로그인한다.
+// /oauth2, /login 은 vite(dev)/nginx(prod)가 Host 보존한 채 게이트웨이로 프록시하므로
+// 아래 요청은 전부 same-origin 이고 auth-server 리다이렉트도 이 오리진으로 돌아온다.
+async function handleLogin() {
+  error.value = ''
+  loading.value = true
+
+  try {
+    // 1) authorization 요청을 auth-server 세션에 저장한다.
+    //    이미 SSO 세션이 있으면 여기서 바로 code 를 받아 자격증명 입력을 건너뛴다.
+    let res = await fetch(`/oauth2/authorize?${oauthParams()}`, { credentials: 'include' })
+    let code = new URL(res.url).searchParams.get('code')
+
+    // 2) 자격증명 제출 → 성공 시 Spring 이 저장된 authorize 요청을 재개해
+    //    최종적으로 /callback?code=... 로 돌아온다. 실패 시 /login?error.
+    if (!code) {
+      const body = new URLSearchParams({
+        username: loginForm.value.email,
+        password: loginForm.value.password
+      })
+      res = await fetch('/login', { method: 'POST', body, credentials: 'include' })
+      code = new URL(res.url).searchParams.get('code')
+      if (!code) {
+        error.value = '이메일 또는 비밀번호가 올바르지 않습니다.'
+        return
+      }
+    }
+
+    // 3) code → access token → 사용자 정보
+    await auth.handleCallback(code)
+    router.replace('/projects')
+  } catch (e) {
+    console.error('[LoginView] 로그인 실패:', e)
+    error.value = '로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+  } finally {
+    loading.value = false
+  }
 }
 
 async function handleRegister() {
@@ -107,11 +184,10 @@ async function handleRegister() {
 
   try {
     await authApi.register(registerForm.value)
-    success.value = '회원가입 완료! 로그인 버튼으로 접속하세요.'
+    success.value = '회원가입 완료! 로그인 탭에서 접속하세요.'
     registerForm.value = { name: '', email: '', password: '', role: 'STUDENT' }
     setTimeout(() => {
-      showRegister.value = false
-      success.value = ''
+      switchTo(false)
     }, 2000)
   } catch (e) {
     console.error('[LoginView] 회원가입 실패:', e)

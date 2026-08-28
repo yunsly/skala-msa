@@ -14,15 +14,28 @@ export default defineConfig({
     port: 3000,
     strictPort: true,
     proxy: {
-      // OAuth2 Authorization Code Flow가 이메일/비밀번호 로그인(POST /api/users/login)으로
-      // 대체되면서 /oauth2, /login, /logout, /userinfo 프록시는 더 이상 쓰이지 않는다.
-      // 특히 /login은 SPA 라우트(LoginView.vue)와 이름이 겹쳐서 그대로 두면 브라우저에서
-      // /login으로 직접 진입(새로고침 포함)할 때 Vue 앱이 아니라 백엔드로 프록시되어
-      // 화면이 아예 뜨지 않는 문제가 있었다.
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
         secure: false
+      },
+      // OAuth2 로그인: 로그인 폼은 SPA(LoginView)가 그리고, authorize/token/자격증명
+      // 제출은 auth-server 로 프록시한다. Host 를 localhost:3000 그대로 넘겨야
+      // (changeOrigin:false) auth-server 리다이렉트(Location)가 이 오리진으로 돌아온다.
+      '/oauth2': {
+        target: 'http://localhost:8080',
+        changeOrigin: false,
+        secure: false
+      },
+      // GET /login 은 SPA 라우트(LoginView)로 두고, POST(자격증명 제출)만 auth-server 로.
+      // (예전에 /login 전체를 프록시해서 직접 진입 시 화면이 안 뜨던 문제를 bypass 로 회피)
+      '/login': {
+        target: 'http://localhost:8080',
+        changeOrigin: false,
+        secure: false,
+        bypass(req) {
+          if (req.method === 'GET') return '/index.html'
+        }
       }
     }
   }

@@ -101,18 +101,9 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // OAuth2 Authorization Code Flow
-  function redirectToLogin() {
-    const params = new URLSearchParams({
-      response_type: 'code',
-      client_id: import.meta.env.VITE_CLIENT_ID,
-      redirect_uri: import.meta.env.VITE_REDIRECT_URI,
-      scope: 'openid profile read write'
-    })
-
-    window.location.href = `${AUTH_SERVER_URL}/oauth2/authorize?${params.toString()}`
-  }
-
+  // OAuth2 Authorization Code Flow.
+  // 로그인 진입(authorize 요청 + 자격증명 제출)은 LoginView 가 same-origin 프록시로
+  // 직접 처리한다. 여기서는 받은 code 를 토큰으로 교환하는 뒷부분만 담당한다.
   async function handleCallback(code) {
     const res = await authApi.exchangeCode(code)
     console.log('[AuthStore] token response =', res.data)
@@ -139,7 +130,6 @@ export const useAuthStore = defineStore('auth', () => {
     setUser,
     fetchUser,
     logout,
-    redirectToLogin,
     handleCallback
   }
 })
