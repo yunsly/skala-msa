@@ -153,7 +153,7 @@ ALTER TABLE enrollments
 
 CREATE TABLE credential_audit_logs (
     id          BIGINT          NOT NULL AUTO_INCREMENT,
-    event_id    CHAR(36)        NOT NULL,
+    event_id    VARCHAR(36)     NOT NULL,
     project_id  BIGINT          NULL,
     course_id   BIGINT          NULL,
     user_id     BIGINT          NULL,

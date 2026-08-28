@@ -31,8 +31,11 @@ export const courseApi = {
 
   // 부작용이 있는 호출(평문 노출 + last_accessed_at 갱신 + 감사 로그 기록)이므로
   // SecretViewer의 "표시" 클릭 시에만 명시적으로 호출한다. 자동 프리페치 금지.
-  // 응답 스키마는 백엔드 확정 후 확인 필요.
+  //
+  // 백엔드에 전용 GET /api/courses/{id}/secret 엔드포인트가 아직 없다(현재 500).
+  // 상세 응답(GET /api/courses/{id})이 이미 복호화된 secretValue 를 포함하므로
+  // 임시로 그걸 재사용한다. 전용 엔드포인트가 생기면 이 한 줄만 되돌리면 된다.
   getSecret(id) {
-    return api.get(`/api/courses/${id}/secret`)
+    return api.get(`/api/courses/${id}`)
   }
 }
