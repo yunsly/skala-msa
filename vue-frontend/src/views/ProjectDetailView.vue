@@ -150,11 +150,12 @@ async function loadProject() {
     }
     project.value = found
 
-    const myProjects = Array.isArray(myRes.data?.data)
-      ? myRes.data.data
-      : Array.isArray(myRes.data)
-        ? myRes.data
-        : []
+    const myProjectsData = myRes.data?.data ?? {}
+    const myProjects = [
+      ...(myProjectsData.activeProjects ?? []),
+      ...(myProjectsData.pendingProjects ?? []),
+      ...(myProjectsData.cancelledProjects ?? [])
+    ]
     const match = myProjects.find((m) => String(m.projectId ?? m.id) === String(projectId.value))
     myStatus.value = match?.status ?? null
 
