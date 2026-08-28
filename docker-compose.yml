@@ -238,6 +238,8 @@ services:
       - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI=http://auth-server:9000/oauth2/jwks
       - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://auth-server:9000
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - COURSE_SERVICE_URL=http://course-service:8082
+      - ENROLLMENT_SERVICE_URL=http://enrollment-service:8083
     depends_on:
       mariadb:
         condition: service_healthy

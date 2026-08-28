@@ -36,6 +36,27 @@ public class EnrollmentKafkaConsumer {
         }
     }
 
+    @KafkaListener(
+            topics = "${kafka.topic.payment-rejected}",
+            groupId = "${spring.kafka.consumer.group-id}",
+            containerFactory = "kafkaListenerContainerFactory"
+    )
+    public void handlePaymentRejected(Map<String, Object> event) {
+        try {
+            Long enrollmentId = requiredLong(event, "enrollmentId");
+            Long userId = requiredLong(event, "userId");
+            Long projectId = requiredLong(event, "projectId");
+            enrollmentService.cancelEnrollment(enrollmentId, userId, projectId);
+        } catch (Exception e) {
+            log.error(
+                    "[Kafka Consumer] 프로젝트 접근 거절 처리 실패 - event: {}, error: {}",
+                    event,
+                    e.getMessage(),
+                    e
+            );
+        }
+    }
+
     private Long requiredLong(Map<String, Object> event, String field) {
         Object value = event.get(field);
         if (!(value instanceof Number number)) {

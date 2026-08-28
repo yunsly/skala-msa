@@ -1,9 +1,14 @@
-# Local dev override (auto-loaded by `docker compose`).
+# Local dev override — `docker compose` 가 자동으로 병합한다.
+#
 # auth-server 이미지(msa-lecture/auth-server:1.0)는 레거시 Role(STUDENT/INSTRUCTOR)
-# 스키마를 기대한다. lecture_db.users 는 이미 ADMIN/LEADER/MEMBER 로 전환됐으므로
-# auth-server 는 레거시 값을 그대로 노출하는 auth_compat_db.users VIEW 를 바라봐야 한다.
-# (docker-compose.yml 의 lecture_db 설정은 이 이미지 기준으로는 부정확하다.)
+# 스키마를 기대한다. lecture_db.users 는 ADMIN/LEADER/MEMBER 로 전환됐으므로 auth-server 는
+# 레거시 값을 그대로 노출하는 auth_compat_db.users VIEW 를 바라봐야 한다.
+# (VIEW 는 init-db/02_auth_role_compatibility.sql 이 생성한다.)
+#
+# ※ 이 override 는 infra/feat-user-auth-compatibility PR 이 develop 에 정식 병합되면
+#    불필요해진다(그 PR 이 docker-compose.yml 본문에서 동일하게 지정). 그때 삭제할 것.
 services:
   auth-server:
     environment:
       - SPRING_DATASOURCE_URL=jdbc:mariadb://lecturedb:3306/auth_compat_db
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=none

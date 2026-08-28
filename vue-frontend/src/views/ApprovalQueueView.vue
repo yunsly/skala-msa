@@ -242,7 +242,7 @@ async function submitReject() {
   rejectModal.value.loading = true
 
   try {
-    await paymentApi.revoke(rejectModal.value.item.id, rejectModal.value.reason)
+    await paymentApi.reject(rejectModal.value.item.id, rejectModal.value.reason)
     items.value = items.value.filter((i) => i.id !== rejectModal.value.item.id)
     closeReject()
   } catch (e) {

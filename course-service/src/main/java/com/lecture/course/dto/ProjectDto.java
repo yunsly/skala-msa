@@ -39,10 +39,11 @@ public class ProjectDto {
         private Long ownerId;
         private Project.Status status;
         private long activeMemberCount;
+        private long assetCount;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
 
-        public static ProjectResponse from(Project project, long activeMemberCount) {
+        public static ProjectResponse from(Project project, long activeMemberCount, long assetCount) {
             return ProjectResponse.builder()
                     .id(project.getId())
                     .name(project.getName())
@@ -50,6 +51,7 @@ public class ProjectDto {
                     .ownerId(project.getOwnerId())
                     .status(project.getStatus())
                     .activeMemberCount(activeMemberCount)
+                    .assetCount(assetCount)
                     .createdAt(project.getCreatedAt())
                     .updatedAt(project.getUpdatedAt())
                     .build();

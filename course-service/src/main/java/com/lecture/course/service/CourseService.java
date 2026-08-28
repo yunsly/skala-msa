@@ -73,9 +73,9 @@ public class CourseService {
     }
 
     public List<ProjectDto.ProjectResponse> getProjects(AuthenticatedActor actor) {
-        Set<Long> activeMemberships = activeMemberships(actor);
+        // 프로젝트 카탈로그는 전사 공개 — 누구나 프로젝트를 탐색하고 접근 권한을 신청할 수 있어야 한다.
+        // 프로젝트 상세/자산 조회는 requireProjectAccess() 로 여전히 소유자·승인 멤버·ADMIN 만 허용된다.
         return projectRepository.findByStatus(Project.Status.ACTIVE).stream()
-                .filter(project -> canViewProject(actor, project, activeMemberships))
                 .map(this::toProjectResponse)
                 .toList();
     }
@@ -365,7 +365,11 @@ public class CourseService {
     }
 
     private ProjectDto.ProjectResponse toProjectResponse(Project project) {
-        return ProjectDto.ProjectResponse.from(project, activeMemberCount(project.getId()));
+        return ProjectDto.ProjectResponse.from(
+                project,
+                activeMemberCount(project.getId()),
+                courseRepository.countByProjectIdAndStatus(project.getId(), Course.Status.ACTIVE)
+        );
     }
 
     private CourseDto.CourseResponse toCourseResponse(Course course, long activeMemberCount) {
