@@ -138,11 +138,12 @@ async function loadAsset() {
     const leaderId = project?.leaderId ?? project?.leader_id ?? project?.ownerId
     const isLeader = leaderId != null && String(leaderId) === String(auth.user?.id)
 
-    const myProjects = Array.isArray(myRes.data?.data)
-      ? myRes.data.data
-      : Array.isArray(myRes.data)
-        ? myRes.data
-        : []
+    const myProjectsData = myRes.data?.data ?? {}
+    const myProjects = [
+      ...(myProjectsData.activeProjects ?? []),
+      ...(myProjectsData.pendingProjects ?? []),
+      ...(myProjectsData.cancelledProjects ?? [])
+    ]
     const match = myProjects.find((m) => String(m.projectId ?? m.id) === String(found.projectId))
 
     canView.value = isLeader || match?.status === 'ACTIVE'
