@@ -7,6 +7,10 @@ export const paymentApi = {
     return api.get('/api/payments/pending')
   },
 
+  getActive() {
+    return api.get('/api/payments/active')
+  },
+
   approve(id, decisionReason) {
     return api.post(`/api/payments/${id}/approve`, { decisionReason })
   },
@@ -14,5 +18,9 @@ export const paymentApi = {
   // PENDING 신청 거절. (승인 후 회수(revoke)는 별도 기능으로, 현재 화면에는 없다.)
   reject(id, decisionReason) {
     return api.post(`/api/payments/${id}/reject`, { decisionReason })
+  },
+
+  revoke(id, decisionReason) {
+    return api.post(`/api/payments/${id}/revoke`, { decisionReason })
   }
 }
