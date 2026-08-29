@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Slf4j
@@ -118,6 +119,16 @@ public class EnrollmentService {
         return enrollmentRepository.findByUserId(userId).stream()
                 .map(EnrollmentDto.EnrollmentResponse::from)
                 .toList();
+    }
+
+    /**
+     * course-service에서 프로젝트 자산(Secret) 조회가 허용된 직후 호출된다.
+     * 멤버십이 없으면(리더/ADMIN 등 enrollment 없이 접근 가능한 경우) 조용히 무시한다.
+     */
+    @Transactional
+    public void markAccessed(Long userId, Long projectId) {
+        enrollmentRepository.findByUserIdAndProjectId(userId, projectId)
+                .ifPresent(enrollment -> enrollment.markAccessed(LocalDateTime.now()));
     }
 
     /**

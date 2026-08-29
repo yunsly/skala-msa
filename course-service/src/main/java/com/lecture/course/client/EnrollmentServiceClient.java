@@ -43,6 +43,15 @@ public class EnrollmentServiceClient {
         return response == null ? 0L : response;
     }
 
+    public void markAccessed(Long userId, Long projectId) {
+        webClient.patch()
+                .uri("/api/enrollments/internal/{userId}/{projectId}/access", userId, projectId)
+                .headers(headers -> headers.setBearerAuth(tokenProvider.getAccessToken()))
+                .retrieve()
+                .toBodilessEntity()
+                .block();
+    }
+
     private record EnrollmentHistory(Long userId, List<Long> activeProjectIds) {
     }
 }

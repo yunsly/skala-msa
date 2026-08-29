@@ -51,7 +51,8 @@
           <div class="detail-side">
             <div class="side-card">
               <div class="side-title">Secret Value</div>
-              <SecretViewer :asset-id="assetId" @revealed="handleRevealed" />
+              <SecretViewer v-if="asset.category === 'API_KEY'" :asset-id="assetId" @revealed="handleRevealed" />
+              <p v-else class="hint">이 자산 유형은 별도로 저장된 Secret이 없습니다.</p>
             </div>
           </div>
         </div>
@@ -95,9 +96,10 @@ function formatDate(value) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
-function handleRevealed(payload) {
-  const value = payload?.lastAccessedAt ?? payload?.last_accessed_at
-  if (value) lastAccessedAt.value = value
+function handleRevealed() {
+  // 평문 조회 시 course-service가 enrollment-service의 last_accessed_at을 갱신한다.
+  // 갱신된 값을 응답으로 돌려주는 전용 엔드포인트가 없어 조회 시각을 그대로 반영한다.
+  lastAccessedAt.value = new Date().toISOString()
 }
 
 async function loadAsset() {
@@ -112,7 +114,6 @@ async function loadAsset() {
       return
     }
     asset.value = found
-    lastAccessedAt.value = found.lastAccessedAt ?? found.last_accessed_at ?? null
 
     if (auth.isAdmin) {
       canView.value = true
@@ -138,12 +139,14 @@ async function loadAsset() {
     const leaderId = project?.leaderId ?? project?.leader_id ?? project?.ownerId
     const isLeader = leaderId != null && String(leaderId) === String(auth.user?.id)
 
-    const myProjects = Array.isArray(myRes.data?.data)
-      ? myRes.data.data
-      : Array.isArray(myRes.data)
-        ? myRes.data
-        : []
+    const myProjectsData = myRes.data?.data ?? {}
+    const myProjects = [
+      ...(myProjectsData.activeProjects ?? []),
+      ...(myProjectsData.pendingProjects ?? []),
+      ...(myProjectsData.cancelledProjects ?? [])
+    ]
     const match = myProjects.find((m) => String(m.projectId ?? m.id) === String(found.projectId))
+    lastAccessedAt.value = match?.lastAccessedAt ?? match?.last_accessed_at ?? null
 
     canView.value = isLeader || match?.status === 'ACTIVE'
   } catch (e) {
@@ -214,6 +217,11 @@ onMounted(loadAsset)
   letter-spacing: 0.05em;
   color: var(--color-text-secondary);
   margin-bottom: 10px;
+}
+.hint {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
 }
 
 .access-gate {
