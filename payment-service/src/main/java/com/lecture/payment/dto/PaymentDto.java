@@ -82,6 +82,21 @@ public class PaymentDto {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
+    public static class ActiveGrantResponse {
+        private Long id;
+        private Long enrollmentId;
+        private Long projectId;
+        private String projectName;
+        private Long userId;
+        private String userName;
+        private String transactionId;
+        private LocalDateTime approvedAt;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
     public static class InternalPaymentResult {
         private Long paymentId;
         private String status;

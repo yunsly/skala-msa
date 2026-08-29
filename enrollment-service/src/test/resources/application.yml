@@ -60,4 +60,5 @@ service:
 kafka:
   topic:
     payment-completed: payment.completed
+    payment-revoked: payment.revoked
     enrollment-completed: enrollment.completed

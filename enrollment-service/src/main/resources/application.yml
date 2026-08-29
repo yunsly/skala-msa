@@ -76,6 +76,7 @@ kafka:
   topic:
     payment-completed: payment.completed
     payment-rejected: payment.rejected
+    payment-revoked: payment.revoked
     enrollment-completed: enrollment.completed
 
 springdoc:

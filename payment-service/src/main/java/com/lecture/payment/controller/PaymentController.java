@@ -39,6 +39,15 @@ public class PaymentController {
                 paymentService.getPendingApprovals(approverId, authorization)));
     }
 
+    @GetMapping("/active")
+    public ResponseEntity<PaymentDto.ApiResponse<List<PaymentDto.ActiveGrantResponse>>> getActive(
+            @RequestHeader("X-User-Id") Long approverId,
+            @RequestHeader("Authorization") String authorization
+    ) {
+        return ResponseEntity.ok(PaymentDto.ApiResponse.success(
+                paymentService.getActiveGrants(approverId, authorization)));
+    }
+
     /**
      * POST /api/payments/{id}/approve - 접근 신청 승인
      */
@@ -65,6 +74,22 @@ public class PaymentController {
         String reason = request == null ? null : request.getDecisionReason();
         return ResponseEntity.ok(PaymentDto.ApiResponse.success(
                 paymentService.reject(id, approverId, reason)));
+    }
+
+    @PostMapping("/{id}/revoke")
+    public ResponseEntity<PaymentDto.ApiResponse<PaymentDto.PaymentResponse>> revoke(
+            @PathVariable Long id,
+            @RequestHeader("X-User-Id") Long approverId,
+            @RequestHeader("Authorization") String authorization,
+            @RequestBody PaymentDto.DecisionRequest request
+    ) {
+        return ResponseEntity.ok(PaymentDto.ApiResponse.success(
+                paymentService.revoke(
+                        id,
+                        approverId,
+                        request.getDecisionReason(),
+                        authorization
+                )));
     }
 
     /**

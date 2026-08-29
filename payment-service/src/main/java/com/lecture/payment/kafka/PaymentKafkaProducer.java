@@ -22,12 +22,19 @@ public class PaymentKafkaProducer {
     @Value("${kafka.topic.payment-rejected}")
     private String paymentRejectedTopic;
 
+    @Value("${kafka.topic.payment-revoked}")
+    private String paymentRevokedTopic;
+
     public void publishPaymentCompleted(PaymentCompletedEvent event) {
         publish(paymentCompletedTopic, event.getProjectId(), event, "승인", event.getPaymentId());
     }
 
     public void publishPaymentRejected(PaymentRejectedEvent event) {
         publish(paymentRejectedTopic, event.getProjectId(), event, "거절", event.getPaymentId());
+    }
+
+    public void publishPaymentRevoked(PaymentRevokedEvent event) {
+        publish(paymentRevokedTopic, event.getProjectId(), event, "회수", event.getPaymentId());
     }
 
     private void publish(String topic, Long projectId, Object event, String label, Long paymentId) {
@@ -73,6 +80,22 @@ public class PaymentKafkaProducer {
         private Long userId;
         private Long projectId;
         private Long rejectedBy;
+        private String reason;
+        private String status;
+        private String occurredAt;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class PaymentRevokedEvent {
+        private String eventId;
+        private Long paymentId;
+        private Long enrollmentId;
+        private Long userId;
+        private Long projectId;
+        private Long revokedBy;
         private String reason;
         private String status;
         private String occurredAt;

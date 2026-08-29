@@ -4,8 +4,31 @@
 
     <main class="content">
       <div class="content-header">
-        <h1>승인 대기</h1>
-        <p class="sub">내 프로젝트로 들어온 접근 신청을 승인하거나 거절하세요.</p>
+        <h1>접근 권한 관리</h1>
+        <p class="sub">내 프로젝트의 접근 신청을 처리하고 활성 권한을 회수하세요.</p>
+      </div>
+
+      <div v-if="FEATURES.approvalQueue" class="tabs" role="tablist" aria-label="접근 권한 상태">
+        <button
+          type="button"
+          class="tab"
+          :class="{ active: activeTab === 'pending' }"
+          role="tab"
+          :aria-selected="activeTab === 'pending'"
+          @click="activeTab = 'pending'"
+        >
+          승인 대기 <span class="tab-count mono">{{ items.length }}</span>
+        </button>
+        <button
+          type="button"
+          class="tab"
+          :class="{ active: activeTab === 'active' }"
+          role="tab"
+          :aria-selected="activeTab === 'active'"
+          @click="activeTab = 'active'"
+        >
+          활성 멤버 <span class="tab-count mono">{{ activeItems.length }}</span>
+        </button>
       </div>
 
       <!-- 준비 중 (백엔드 승인 API 미연동) -->
@@ -24,11 +47,15 @@
       </div>
 
       <!-- 빈 상태 -->
-      <div v-else-if="items.length === 0" class="state-box">
+      <div v-else-if="activeTab === 'pending' && items.length === 0" class="state-box">
         <p>대기 중인 접근 신청이 없습니다.</p>
       </div>
 
-      <div v-else class="list">
+      <div v-else-if="activeTab === 'active' && activeItems.length === 0" class="state-box">
+        <p>현재 활성화된 프로젝트 멤버가 없습니다.</p>
+      </div>
+
+      <div v-else-if="activeTab === 'pending'" class="list">
         <div v-for="item in items" :key="item.id" class="row">
           <div class="row-main">
             <div class="row-top">
@@ -42,6 +69,32 @@
           <div class="row-actions">
             <button type="button" class="btn btn-secondary btn-sm" :disabled="item._busy" @click="openReject(item)">거절</button>
             <button type="button" class="btn btn-primary btn-sm" :disabled="item._busy" @click="openApprove(item)">승인</button>
+          </div>
+        </div>
+      </div>
+
+      <div v-else class="list">
+        <div v-for="item in activeItems" :key="item.id" class="row">
+          <div class="row-main">
+            <div class="row-top">
+              <h3>{{ item.projectName }}</h3>
+              <StatusBadge status="ACTIVE" />
+            </div>
+            <p class="requester">
+              {{ item.requesterName }} · 승인일 <span class="mono">{{ formatDate(item.approvedAt) }}</span>
+            </p>
+            <p v-if="item.transactionId" class="ticket mono">{{ item.transactionId }}</p>
+          </div>
+
+          <div class="row-actions">
+            <button
+              type="button"
+              class="btn btn-danger btn-sm"
+              :disabled="item._busy"
+              @click="openRevoke(item)"
+            >
+              접근 회수
+            </button>
           </div>
         </div>
       </div>
@@ -108,6 +161,37 @@
         </form>
       </div>
     </div>
+
+    <!-- 활성 프로젝트 접근 권한 회수 -->
+    <div v-if="revokeModal.open" class="modal-backdrop" @click.self="closeRevoke">
+      <div ref="revokeModalEl" class="modal" role="dialog" aria-modal="true" aria-labelledby="revoke-modal-title">
+        <h2 id="revoke-modal-title">접근 권한 회수</h2>
+        <p class="modal-sub">{{ revokeModal.item?.requesterName }} · {{ revokeModal.item?.projectName }}</p>
+
+        <form @submit.prevent="submitRevoke">
+          <label class="form-label" for="revokeReason">회수 사유</label>
+          <textarea
+            id="revokeReason"
+            ref="revokeReasonInput"
+            v-model.trim="revokeModal.reason"
+            class="form-textarea"
+            rows="3"
+            placeholder="접근 권한을 회수하는 이유를 입력하세요."
+            required
+          ></textarea>
+
+          <div v-if="revokeModal.error" class="error-msg">{{ revokeModal.error }}</div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" @click="closeRevoke">취소</button>
+            <button type="submit" class="btn btn-danger" :disabled="revokeModal.loading">
+              <span v-if="revokeModal.loading">처리 중...</span>
+              <span v-else>접근 회수</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -121,6 +205,8 @@ import { FEATURES } from '@/config/features.js'
 const loading = ref(true)
 const error = ref('')
 const items = ref([])
+const activeItems = ref([])
+const activeTab = ref('pending')
 
 function formatDate(value) {
   if (!value) return ''
@@ -135,15 +221,38 @@ async function loadAll() {
   error.value = ''
 
   try {
-    const res = await paymentApi.getPending()
-    const raw = Array.isArray(res.data?.data) ? res.data.data : Array.isArray(res.data) ? res.data : []
-    items.value = raw.map((r) => ({
+    const [pendingRes, activeRes] = await Promise.all([
+      paymentApi.getPending(),
+      paymentApi.getActive()
+    ])
+    const pendingRaw = Array.isArray(pendingRes.data?.data)
+      ? pendingRes.data.data
+      : Array.isArray(pendingRes.data)
+        ? pendingRes.data
+        : []
+    const activeRaw = Array.isArray(activeRes.data?.data)
+      ? activeRes.data.data
+      : Array.isArray(activeRes.data)
+        ? activeRes.data
+        : []
+
+    items.value = pendingRaw.map((r) => ({
       id: r.id,
       projectId: r.projectId,
       projectName: r.projectName ?? r.project?.name ?? `프로젝트 #${r.projectId}`,
       requesterName: r.userName ?? r.requesterName ?? r.user?.name ?? `사용자 #${r.userId}`,
       reason: r.reason,
       requestedAt: r.requestedAt ?? r.createdAt,
+      _busy: false
+    }))
+    activeItems.value = activeRaw.map((r) => ({
+      id: r.id,
+      enrollmentId: r.enrollmentId,
+      projectId: r.projectId,
+      projectName: r.projectName ?? `프로젝트 #${r.projectId}`,
+      requesterName: r.userName ?? `사용자 #${r.userId}`,
+      transactionId: r.transactionId,
+      approvedAt: r.approvedAt,
       _busy: false
     }))
   } catch (e) {
@@ -185,10 +294,12 @@ function handleModalKeydown(e) {
   if (e.key === 'Escape') {
     if (approveModal.value.open) closeApprove()
     if (rejectModal.value.open) closeReject()
+    if (revokeModal.value.open) closeRevoke()
     return
   }
   if (approveModal.value.open) trapTab(e, approveModalEl.value)
   if (rejectModal.value.open) trapTab(e, rejectModalEl.value)
+  if (revokeModal.value.open) trapTab(e, revokeModalEl.value)
 }
 onMounted(() => window.addEventListener('keydown', handleModalKeydown))
 onUnmounted(() => window.removeEventListener('keydown', handleModalKeydown))
@@ -252,6 +363,41 @@ async function submitReject() {
     rejectModal.value.loading = false
   }
 }
+
+// 활성 접근 권한 회수
+const revokeModal = ref({ open: false, item: null, reason: '', loading: false, error: '' })
+const revokeReasonInput = ref(null)
+const revokeModalEl = ref(null)
+
+function openRevoke(item) {
+  lastFocusedEl = document.activeElement
+  revokeModal.value = { open: true, item, reason: '', loading: false, error: '' }
+  nextTick(() => revokeReasonInput.value?.focus())
+}
+
+function closeRevoke() {
+  revokeModal.value.open = false
+  lastFocusedEl?.focus?.()
+}
+
+async function submitRevoke() {
+  revokeModal.value.error = ''
+  revokeModal.value.loading = true
+  const item = revokeModal.value.item
+  item._busy = true
+
+  try {
+    await paymentApi.revoke(item.id, revokeModal.value.reason)
+    activeItems.value = activeItems.value.filter((active) => active.id !== item.id)
+    closeRevoke()
+  } catch (e) {
+    console.error('[ApprovalQueueView] 접근 권한 회수 실패:', e)
+    revokeModal.value.error = e.response?.data?.message || '접근 권한 회수에 실패했습니다.'
+  } finally {
+    item._busy = false
+    revokeModal.value.loading = false
+  }
+}
 </script>
 
 <style scoped>
@@ -268,6 +414,31 @@ async function submitReject() {
 .content-header h1 { font-size: 20px; font-weight: 700; color: var(--color-text-primary); }
 .sub { font-size: 12.5px; color: var(--color-text-secondary); margin-top: 4px; }
 
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--color-border);
+}
+.tab {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+  padding: 9px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.tab.active {
+  color: var(--color-text-primary);
+  border-bottom-color: var(--color-primary);
+  font-weight: 600;
+}
+.tab-count {
+  margin-left: 4px;
+  font-size: 11px;
+}
+
 .list { display: flex; flex-direction: column; gap: 10px; }
 .row {
   display: flex;
@@ -283,6 +454,7 @@ async function submitReject() {
 .row-top h3 { font-size: 14px; font-weight: 600; color: var(--color-text-primary); }
 .requester { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; }
 .reason { font-size: 12.5px; color: var(--color-text-primary); font-style: italic; }
+.ticket { font-size: 10.5px; color: var(--color-text-muted); }
 .row-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .btn-sm { padding: 7px 14px; font-size: 12.5px; }
 .btn-danger {
