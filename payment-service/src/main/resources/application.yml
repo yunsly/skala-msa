@@ -49,6 +49,7 @@ kafka:
   topic:
     payment-completed: payment.completed
     payment-rejected: payment.rejected
+    payment-revoked: payment.revoked
 
 # 승인 대기 목록 보강(프로젝트명/신청 사유)을 위한 내부 서비스 호출 대상
 service:
@@ -56,6 +57,8 @@ service:
     url: ${COURSE_SERVICE_URL:http://localhost:8082}
   enrollment-service:
     url: ${ENROLLMENT_SERVICE_URL:http://localhost:8083}
+  user-service:
+    url: ${USER_SERVICE_URL:http://user-service:8081}
 
 springdoc:
   api-docs:

@@ -19,13 +19,16 @@ public class ApprovalContextClient {
 
     private final RestClient courseClient;
     private final RestClient enrollmentClient;
+    private final RestClient userClient;
 
     public ApprovalContextClient(
             @Value("${service.course-service.url}") String courseUrl,
-            @Value("${service.enrollment-service.url}") String enrollmentUrl
+            @Value("${service.enrollment-service.url}") String enrollmentUrl,
+            @Value("${service.user-service.url}") String userUrl
     ) {
         this.courseClient = RestClient.create(courseUrl);
         this.enrollmentClient = RestClient.create(enrollmentUrl);
+        this.userClient = RestClient.create(userUrl);
     }
 
     public record OwnedProject(Long id, String name) {
@@ -37,6 +40,22 @@ public class ApprovalContextClient {
      */
     @SuppressWarnings("unchecked")
     public List<OwnedProject> getOwnedProjects(Long approverId, String authorizationHeader) {
+        return getProjects(authorizationHeader).stream()
+                .filter(project -> project.ownerId() != null
+                        && project.ownerId().equals(approverId))
+                .map(project -> new OwnedProject(project.id(), project.name()))
+                .toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<OwnedProject> getAllProjects(String authorizationHeader) {
+        return getProjects(authorizationHeader).stream()
+                .map(project -> new OwnedProject(project.id(), project.name()))
+                .toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<ProjectContext> getProjects(String authorizationHeader) {
         try {
             Map<String, Object> body = courseClient.get()
                     .uri("/api/courses/projects")
@@ -49,14 +68,34 @@ public class ApprovalContextClient {
                     : (List<Map<String, Object>>) body.getOrDefault("data", List.of());
 
             return data.stream()
-                    .filter(p -> asLong(p.get("ownerId")) != null
-                            && asLong(p.get("ownerId")).equals(approverId))
-                    .map(p -> new OwnedProject(asLong(p.get("id")), (String) p.get("name")))
+                    .map(p -> new ProjectContext(
+                            asLong(p.get("id")),
+                            (String) p.get("name"),
+                            asLong(p.get("ownerId"))
+                    ))
                     .toList();
         } catch (RuntimeException e) {
-            log.warn("[ApprovalContextClient] 소유 프로젝트 조회 실패 - approverId: {}, error: {}",
-                    approverId, e.getMessage());
+            log.warn("[ApprovalContextClient] 프로젝트 조회 실패 - error: {}", e.getMessage());
             return List.of();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public String getUserRole(Long userId) {
+        try {
+            Map<String, Object> body = userClient.get()
+                    .uri("/api/users/internal/{id}", userId)
+                    .retrieve()
+                    .body(Map.class);
+            Object role = body == null ? null : body.get("role");
+            if (role == null) {
+                throw new IllegalStateException("사용자 역할 응답이 없습니다.");
+            }
+            return String.valueOf(role);
+        } catch (RuntimeException e) {
+            log.warn("[ApprovalContextClient] 사용자 역할 조회 실패 - userId: {}, error: {}",
+                    userId, e.getMessage());
+            throw new IllegalStateException("사용자 역할을 확인할 수 없습니다.", e);
         }
     }
 
@@ -76,5 +115,8 @@ public class ApprovalContextClient {
 
     private static Long asLong(Object value) {
         return value instanceof Number n ? n.longValue() : null;
+    }
+
+    private record ProjectContext(Long id, String name, Long ownerId) {
     }
 }
