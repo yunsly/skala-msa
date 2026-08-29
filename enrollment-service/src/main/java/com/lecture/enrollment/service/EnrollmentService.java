@@ -115,6 +115,32 @@ public class EnrollmentService {
         );
     }
 
+    /**
+     * payment.revoked 이벤트 수신 시 활성 프로젝트 멤버십을 회수한다.
+     * 동일 이벤트가 재전달되어도 CANCELLED 상태면 성공으로 처리한다.
+     */
+    @Transactional
+    public void revokeEnrollment(Long enrollmentId, Long userId, Long projectId) {
+        Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "접근 신청을 찾을 수 없습니다: " + enrollmentId
+                ));
+
+        if (!enrollment.getUserId().equals(userId)
+                || !enrollment.getProjectId().equals(projectId)) {
+            throw new IllegalArgumentException("회수 이벤트와 접근 신청 정보가 일치하지 않습니다.");
+        }
+        if (enrollment.getStatus() == Enrollment.Status.CANCELLED) {
+            return;
+        }
+        if (enrollment.getStatus() != Enrollment.Status.ACTIVE) {
+            throw new IllegalStateException("ACTIVE 프로젝트 멤버십만 회수할 수 있습니다.");
+        }
+
+        enrollment.cancel();
+        log.info("[EnrollmentService] 프로젝트 접근 권한 회수 - enrollmentId: {}", enrollmentId);
+    }
+
     public List<EnrollmentDto.EnrollmentResponse> getEnrollmentsByUser(Long userId) {
         return enrollmentRepository.findByUserId(userId).stream()
                 .map(EnrollmentDto.EnrollmentResponse::from)

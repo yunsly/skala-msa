@@ -163,4 +163,36 @@ class EnrollmentServiceTest {
         assertThat(count).isEqualTo(5L);
         verify(repository).countByProjectIdAndStatus(3L, Enrollment.Status.ACTIVE);
     }
+
+    @Test
+    void revokeEnrollment_cancelsActiveMembership() {
+        Enrollment active = enrollment(100L, 1L, 10L, Enrollment.Status.ACTIVE);
+        when(repository.findById(100L)).thenReturn(Optional.of(active));
+
+        service.revokeEnrollment(100L, 1L, 10L);
+
+        assertThat(active.getStatus()).isEqualTo(Enrollment.Status.CANCELLED);
+    }
+
+    @Test
+    void revokeEnrollment_isIdempotentForCancelledMembership() {
+        Enrollment cancelled = enrollment(100L, 1L, 10L, Enrollment.Status.CANCELLED);
+        when(repository.findById(100L)).thenReturn(Optional.of(cancelled));
+
+        service.revokeEnrollment(100L, 1L, 10L);
+
+        assertThat(cancelled.getStatus()).isEqualTo(Enrollment.Status.CANCELLED);
+    }
+
+    @Test
+    void revokeEnrollment_rejectsMismatchedEvent() {
+        Enrollment active = enrollment(100L, 1L, 10L, Enrollment.Status.ACTIVE);
+        when(repository.findById(100L)).thenReturn(Optional.of(active));
+
+        assertThatThrownBy(() -> service.revokeEnrollment(100L, 2L, 10L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("일치하지 않습니다");
+
+        assertThat(active.getStatus()).isEqualTo(Enrollment.Status.ACTIVE);
+    }
 }
